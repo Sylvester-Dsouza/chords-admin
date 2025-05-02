@@ -60,6 +60,17 @@ export default function SongsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [selectedSongs, setSelectedSongs] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
+
+  // Add debugging
+  React.useEffect(() => {
+    console.log("Songs page mounted");
+
+    // Add a cleanup function to detect unmounting
+    return () => {
+      console.log("Songs page unmounted");
+    };
+  }, []);
+
   const [visibleColumns, setVisibleColumns] = React.useState({
     title: true,
     artist: true,
@@ -135,12 +146,26 @@ export default function SongsPage() {
     })
   }
 
+  // Add a state to track if this is the initial render
+  const [isInitialRender, setIsInitialRender] = React.useState(true);
+  
+  // Use this effect to set isInitialRender to false after the component mounts
+  React.useEffect(() => {
+    if (isInitialRender) {
+      setIsInitialRender(false);
+    }
+  }, [isInitialRender]);
+  
   return (
     <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      } as React.CSSProperties}
+      // Prevent automatic navigation on mount
+      defaultOpen={true}
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
     >
       <AppSidebar variant="inset" />
       <SidebarInset>

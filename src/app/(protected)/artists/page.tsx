@@ -68,7 +68,7 @@ export default function ArtistsPage() {
     name: true,
     songCount: true,
     totalViews: true,
-    featured: true,
+    isFeatured: true,
     createdAt: true,
   })
 
@@ -79,12 +79,12 @@ export default function ArtistsPage() {
         setLoading(true)
         const data = await artistService.getAllArtists()
 
-        // Add placeholder values for songCount, totalViews, and featured
+        // Add placeholder values for songCount, totalViews, and isFeatured
         const artistsWithStats = data.map(artist => ({
           ...artist,
           songCount: 0, // This would need to be fetched from the API
           totalViews: Math.floor(Math.random() * 50000), // Placeholder
-          featured: Math.random() > 0.5, // Placeholder
+          isFeatured: artist.isFeatured ?? Math.random() > 0.5, // Use existing value or placeholder
           // Convert string dates to Date objects if needed
           createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
           updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
@@ -209,11 +209,11 @@ export default function ArtistsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {loading ? '...' : artists.filter(artist => artist.featured === true).length}
+                  {loading ? '...' : artists.filter(artist => artist.isFeatured === true).length}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {loading ? '...' : artists.length > 0 ?
-                    `${Math.round((artists.filter(artist => artist.featured === true).length / artists.length) * 100)}% of total artists` :
+                    `${Math.round((artists.filter(artist => artist.isFeatured === true).length / artists.length) * 100)}% of total artists` :
                     'No artists'}
                 </p>
               </CardContent>
@@ -308,9 +308,9 @@ export default function ArtistsPage() {
                         Views
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
-                        checked={visibleColumns.featured}
+                        checked={visibleColumns.isFeatured}
                         onCheckedChange={(checked) =>
-                          setVisibleColumns({ ...visibleColumns, featured: checked })
+                          setVisibleColumns({ ...visibleColumns, isFeatured: checked })
                         }
                       >
                         Featured
@@ -371,7 +371,7 @@ export default function ArtistsPage() {
                     {visibleColumns.name && <TableHead>Name</TableHead>}
                     {visibleColumns.songCount && <TableHead className="text-right">Songs</TableHead>}
                     {visibleColumns.totalViews && <TableHead className="text-right">Views</TableHead>}
-                    {visibleColumns.featured && <TableHead>Featured</TableHead>}
+                    {visibleColumns.isFeatured && <TableHead>Featured</TableHead>}
                     {visibleColumns.createdAt && <TableHead>Created</TableHead>}
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -414,17 +414,17 @@ export default function ArtistsPage() {
                         {visibleColumns.totalViews && (
                           <TableCell className="text-right">{artist.totalViews?.toLocaleString() || '0'}</TableCell>
                         )}
-                        {visibleColumns.featured && (
+                        {visibleColumns.isFeatured && (
                           <TableCell>
                             <Badge
                               variant="outline"
                               className={
-                                artist.featured === true
+                                artist.isFeatured === true
                                   ? "border-green-500 text-green-500"
                                   : "border-gray-500 text-gray-500"
                               }
                             >
-                              {artist.featured === true ? "Featured" : "Not Featured"}
+                              {artist.isFeatured === true ? "Featured" : "Not Featured"}
                             </Badge>
                           </TableCell>
                         )}

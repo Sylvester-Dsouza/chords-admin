@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 import { type Icon } from "@tabler/icons-react"
 
 import {
@@ -63,10 +64,10 @@ export function NavSecondary({
                         asChild
                         className={`w-full justify-start pl-6 ${pathname === subItem.url ? 'bg-accent text-accent-foreground' : ''}`}
                       >
-                        <a href={subItem.url}>
+                        <Link href={subItem.url}>
                           {subItem.icon && <subItem.icon className="h-4 w-4" />}
                           <span>{subItem.title}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuButton>
                     ))}
                   </div>
@@ -76,10 +77,10 @@ export function NavSecondary({
                   asChild
                   className={pathname === item.url ? 'bg-accent text-accent-foreground' : ''}
                 >
-                  <a href={item.url}>
+                  <Link href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>

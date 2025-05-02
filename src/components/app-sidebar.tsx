@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
 import {
   IconDashboard,
   IconMusic,
@@ -278,6 +280,34 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Custom navigation handler to prevent unwanted redirects
+  const handleNavigation = (url: string) => {
+    console.log(`AppSidebar - Navigating to: ${url}, from: ${pathname}`);
+    
+    // Prevent navigation if we're already on the page
+    if (pathname === url) {
+      console.log(`AppSidebar - Already on ${url}, preventing navigation`);
+      return;
+    }
+    
+    // Use router.push for client-side navigation
+    router.push(url);
+  };
+  
+  // Add debugging
+  React.useEffect(() => {
+    console.log("AppSidebar mounted");
+    console.log(`AppSidebar - Current path: ${pathname}`);
+
+    // Add a cleanup function to detect unmounting
+    return () => {
+      console.log("AppSidebar unmounted");
+    };
+  }, [pathname]);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -286,6 +316,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
+              onClick={(e) => {
+                e.preventDefault();
+                console.log("Clicked on Christian Chords logo, navigating to /dashboard");
+                handleNavigation('/dashboard');
+              }}
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />

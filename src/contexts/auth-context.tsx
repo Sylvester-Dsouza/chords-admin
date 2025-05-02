@@ -137,6 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Store authentication state
             localStorage.setItem("isAuthenticated", "true")
+            
+            console.log("Auth Context - User authenticated and cookie set")
             } else {
               // If the API call fails, sign out from Firebase
               await firebaseSignOut(auth)
@@ -216,7 +218,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // The auth state listener will handle setting the user
       // Set authentication cookie immediately for better UX
       document.cookie = `isAuthenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
-      router.push("/dashboard")
+      // Only redirect to dashboard from login page
+      if (window.location.pathname === '/login') {
+        router.push("/dashboard")
+      }
     } catch (error: unknown) {
       const firebaseError = error as { code?: string, message?: string };
       console.error("Sign in error:", error)
