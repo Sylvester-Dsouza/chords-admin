@@ -1,15 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { SystemMonitoringService } from "@/services/system-monitoring.service"
+import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { 
+import {
   IconDownload,
   IconSearch,
   IconFilter,
@@ -20,7 +22,7 @@ import {
   IconX
 } from "@tabler/icons-react"
 import { Input } from "@/components/ui/input"
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -38,165 +40,126 @@ import {
 } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
 
-// Mock audit log data
-const auditLogs = [
-  {
-    id: "1",
-    timestamp: "2023-05-01T12:34:56Z",
-    type: "AUTH",
-    severity: "INFO",
-    action: "User login",
-    userId: "user123",
-    targetId: null,
-    targetType: null,
-    ip: "192.168.1.1",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    details: { success: true, method: "password" }
-  },
-  {
-    id: "2",
-    timestamp: "2023-05-01T12:30:22Z",
-    type: "SECURITY",
-    severity: "WARNING",
-    action: "Failed login attempt",
-    userId: null,
-    targetId: null,
-    targetType: null,
-    ip: "203.0.113.42",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    details: { reason: "Invalid password", attempts: 3 }
-  },
-  {
-    id: "3",
-    timestamp: "2023-05-01T11:45:12Z",
-    type: "CONTENT",
-    severity: "INFO",
-    action: "Song updated",
-    userId: "admin456",
-    targetId: "song789",
-    targetType: "song",
-    ip: "192.168.1.5",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-    details: { fields: ["title", "lyrics"] }
-  },
-  {
-    id: "4",
-    timestamp: "2023-05-01T10:22:33Z",
-    type: "SECURITY",
-    severity: "CRITICAL",
-    action: "Suspicious request pattern detected",
-    userId: null,
-    targetId: null,
-    targetType: null,
-    ip: "198.51.100.23",
-    userAgent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-    details: { patterns: ["SQL injection pattern", "XSS pattern"], path: "/api/songs" }
-  },
-  {
-    id: "5",
-    timestamp: "2023-05-01T09:15:44Z",
-    type: "ADMIN",
-    severity: "INFO",
-    action: "User role changed",
-    userId: "admin456",
-    targetId: "user789",
-    targetType: "user",
-    ip: "192.168.1.10",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    details: { oldRole: "USER", newRole: "ADMIN" }
-  },
-  {
-    id: "6",
-    timestamp: "2023-05-01T08:30:12Z",
-    type: "SYSTEM",
-    severity: "ERROR",
-    action: "Database connection error",
-    userId: null,
-    targetId: null,
-    targetType: null,
-    ip: null,
-    userAgent: null,
-    details: { error: "Connection timeout", database: "main" }
-  },
-  {
-    id: "7",
-    timestamp: "2023-05-01T07:45:22Z",
-    type: "AUTH",
-    severity: "INFO",
-    action: "Token refreshed",
-    userId: "user123",
-    targetId: null,
-    targetType: null,
-    ip: "192.168.1.1",
-    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X)",
-    details: { deviceId: "iphone12" }
-  },
-  {
-    id: "8",
-    timestamp: "2023-05-01T06:12:33Z",
-    type: "SECURITY",
-    severity: "WARNING",
-    action: "Rate limit exceeded",
-    userId: "user456",
-    targetId: null,
-    targetType: null,
-    ip: "192.168.1.15",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    details: { endpoint: "/api/songs", limit: 60, count: 75 }
-  },
-  {
-    id: "9",
-    timestamp: "2023-05-01T05:30:44Z",
-    type: "CONTENT",
-    severity: "INFO",
-    action: "Comment created",
-    userId: "user789",
-    targetId: "song123",
-    targetType: "song",
-    ip: "192.168.1.20",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-    details: { commentId: "comment456" }
-  },
-  {
-    id: "10",
-    timestamp: "2023-05-01T04:45:55Z",
-    type: "USER",
-    severity: "INFO",
-    action: "User registered",
-    userId: "user999",
-    targetId: null,
-    targetType: null,
-    ip: "192.168.1.25",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    details: { method: "email" }
-  }
-];
+// Define audit log interface
+interface AuditLog {
+  id: string;
+  timestamp: string;
+  type: string;
+  severity: string;
+  action: string;
+  userId: string | null;
+  targetId: string | null;
+  targetType: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  details: any;
+}
+
+// Define pagination interface
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
 
 export default function AuditLogsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("ALL")
   const [severityFilter, setSeverityFilter] = useState("ALL")
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Filter logs based on search term and filters
+  // Load audit logs from API
+  useEffect(() => {
+    loadAuditLogs();
+  }, [currentPage, typeFilter, severityFilter]);
+
+  // Load audit logs from API
+  const loadAuditLogs = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Build filters
+      const filters: Record<string, string> = {};
+
+      if (typeFilter !== "ALL") {
+        filters.type = typeFilter;
+      }
+
+      if (severityFilter !== "ALL") {
+        filters.severity = severityFilter;
+      }
+
+      // Get audit logs from API
+      const response = await SystemMonitoringService.getAuditLogs(
+        currentPage,
+        itemsPerPage,
+        filters
+      );
+
+      // Update state
+      setAuditLogs(response.logs || []);
+      setPagination(response.pagination || {
+        page: currentPage,
+        limit: itemsPerPage,
+        total: response.logs?.length || 0,
+        pages: Math.ceil((response.logs?.length || 0) / itemsPerPage)
+      });
+    } catch (err: any) {
+      console.error("Error loading audit logs:", err);
+
+      // Check if it's a network error
+      if (err.message === "Network Error" || err.code === "ERR_NETWORK") {
+        setError("Cannot connect to the API server. Please check if the API server is running and accessible.");
+        toast.error("API connection error. Please check if the API server is running.");
+      } else if (err.response?.status === 401) {
+        setError("Authentication error. Please log in again.");
+        toast.error("Authentication error");
+        // Don't redirect here - the auth context will handle that
+      } else {
+        setError("Failed to load audit logs. Please try again.");
+        toast.error("Failed to load audit logs");
+      }
+
+      setAuditLogs([]);
+      setPagination({
+        page: 1,
+        limit: itemsPerPage,
+        total: 0,
+        pages: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadAuditLogs();
+  };
+
+  // Filter logs based on search term
   const filteredLogs = auditLogs.filter(log => {
-    const matchesSearch = searchTerm === "" || 
+    if (searchTerm === "") return true;
+
+    return (
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (log.userId && log.userId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (log.ip && log.ip.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesType = typeFilter === "ALL" || log.type === typeFilter;
-    const matchesSeverity = severityFilter === "ALL" || log.severity === severityFilter;
-    
-    return matchesSearch && matchesType && matchesSeverity;
+      (log.ip && log.ip.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
   });
-
-  // Paginate logs
-  const paginatedLogs = filteredLogs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
 
   // Format timestamp
   const formatTimestamp = (timestamp: string) => {
@@ -301,7 +264,12 @@ export default function AuditLogsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Button variant="outline" className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={applyFilters}
+                    disabled={loading}
+                  >
                     <IconFilter className="mr-2 h-4 w-4" />
                     Apply Filters
                   </Button>
@@ -315,7 +283,9 @@ export default function AuditLogsPage() {
             <CardHeader>
               <CardTitle>Audit Logs</CardTitle>
               <CardDescription>
-                Showing {paginatedLogs.length} of {filteredLogs.length} logs
+                {loading ? "Loading audit logs..." :
+                 error ? "Error loading audit logs" :
+                 `Showing ${filteredLogs.length} of ${pagination.total} logs`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -328,73 +298,123 @@ export default function AuditLogsPage() {
                   <div>Severity</div>
                   <div>Details</div>
                 </div>
-                <div className="divide-y">
-                  {paginatedLogs.map((log) => (
-                    <div key={log.id} className="grid grid-cols-6 gap-4 p-4">
-                      <div className="text-sm">{formatTimestamp(log.timestamp)}</div>
-                      <div className="text-sm font-medium">{log.action}</div>
-                      <div className="text-sm">
-                        {log.userId ? log.userId : "Anonymous"}
-                        <br />
-                        <span className="text-xs text-muted-foreground">{log.ip || "N/A"}</span>
+
+                {loading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="ml-3">Loading audit logs...</span>
+                  </div>
+                ) : error ? (
+                  <div className="flex justify-center items-center py-12 text-red-500">
+                    <IconAlertCircle className="h-6 w-6 mr-2" />
+                    <span>{error}</span>
+                  </div>
+                ) : filteredLogs.length === 0 ? (
+                  <div className="flex justify-center items-center py-12 text-muted-foreground">
+                    <IconAlertCircle className="h-6 w-6 mr-2" />
+                    <span>No audit logs found</span>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredLogs.map((log) => (
+                      <div key={log.id} className="grid grid-cols-6 gap-4 p-4">
+                        <div className="text-sm">{formatTimestamp(log.timestamp)}</div>
+                        <div className="text-sm font-medium">{log.action}</div>
+                        <div className="text-sm">
+                          {log.userId ? log.userId : "Anonymous"}
+                          <br />
+                          <span className="text-xs text-muted-foreground">{log.ip || "N/A"}</span>
+                        </div>
+                        <div className="text-sm">
+                          <Badge variant="outline">{log.type}</Badge>
+                        </div>
+                        <div className="text-sm">
+                          {getSeverityBadge(log.severity as 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL')}
+                        </div>
+                        <div className="text-sm">
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-sm">
-                        <Badge variant="outline">{log.type}</Badge>
-                      </div>
-                      <div className="text-sm">
-                        {getSeverityBadge(log.severity as 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL')}
-                      </div>
-                      <div className="text-sm">
-                        <Button variant="ghost" size="sm">
-                          View Details
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Pagination */}
-              <div className="mt-4">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        href="#" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(Math.max(1, currentPage - 1));
-                        }}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.ceil(filteredLogs.length / itemsPerPage) }).map((_, i) => (
-                      <PaginationItem key={i}>
-                        <PaginationLink 
-                          href="#" 
+              {!loading && !error && pagination.pages > 0 && (
+                <div className="mt-4">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
                           onClick={(e) => {
                             e.preventDefault();
-                            setCurrentPage(i + 1);
+                            if (currentPage > 1) {
+                              setCurrentPage(currentPage - 1);
+                            }
                           }}
-                          isActive={currentPage === i + 1}
-                        >
-                          {i + 1}
-                        </PaginationLink>
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        />
                       </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext 
-                        href="#" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(Math.min(Math.ceil(filteredLogs.length / itemsPerPage), currentPage + 1));
-                        }}
-                        className={currentPage === Math.ceil(filteredLogs.length / itemsPerPage) ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
+
+                      {/* Generate pagination links */}
+                      {Array.from({ length: pagination.pages }).map((_, i) => {
+                        // Only show 5 pages at a time
+                        if (
+                          i === 0 || // First page
+                          i === pagination.pages - 1 || // Last page
+                          (i >= currentPage - 2 && i <= currentPage + 2) // Pages around current page
+                        ) {
+                          return (
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentPage(i + 1);
+                                }}
+                                isActive={currentPage === i + 1}
+                              >
+                                {i + 1}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+
+                        // Show ellipsis for skipped pages
+                        if (
+                          (i === 1 && currentPage > 3) || // Ellipsis after first page
+                          (i === pagination.pages - 2 && currentPage < pagination.pages - 2) // Ellipsis before last page
+                        ) {
+                          return (
+                            <PaginationItem key={i}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          );
+                        }
+
+                        return null;
+                      })}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (currentPage < pagination.pages) {
+                              setCurrentPage(currentPage + 1);
+                            }
+                          }}
+                          className={currentPage === pagination.pages ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

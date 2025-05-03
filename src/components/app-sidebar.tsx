@@ -34,7 +34,8 @@ import {
   IconDatabase,
   IconCpu,
   IconClockHour4,
-  IconLayoutDashboard
+  IconLayoutDashboard,
+  IconBug
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -142,11 +143,6 @@ const data = {
       url: "/comments",
       icon: IconMessageCircle,
     },
-    {
-      title: "Featured Content",
-      url: "/featured",
-      icon: IconStar,
-    },
   ],
   navSecondary: [
     {
@@ -220,29 +216,17 @@ const data = {
           url: "/system/performance",
           icon: IconClockHour4,
         },
+        {
+          title: "Debug",
+          url: "/system/debug",
+          icon: IconBug,
+        },
       ],
     },
     {
       name: "Analytics",
       url: "/analytics",
       icon: IconChartBar,
-    },
-    {
-      name: "Customer Content",
-      url: "/customer-content",
-      icon: IconFolder,
-      subItems: [
-        {
-          title: "Playlists",
-          url: "/customer-content/playlists",
-          icon: IconPlaylist,
-        },
-        {
-          title: "Liked Songs",
-          url: "/customer-content/liked-songs",
-          icon: IconHeart,
-        },
-      ],
     },
     {
       name: "Subscriptions",
@@ -282,21 +266,21 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // Custom navigation handler to prevent unwanted redirects
   const handleNavigation = (url: string) => {
     console.log(`AppSidebar - Navigating to: ${url}, from: ${pathname}`);
-    
+
     // Prevent navigation if we're already on the page
     if (pathname === url) {
       console.log(`AppSidebar - Already on ${url}, preventing navigation`);
       return;
     }
-    
+
     // Use router.push for client-side navigation
     router.push(url);
   };
-  
+
   // Add debugging
   React.useEffect(() => {
     console.log("AppSidebar mounted");

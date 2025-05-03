@@ -89,9 +89,12 @@ export const AnalyticsService = {
     }
   },
 
-  // Get all analytics data in one call
+  // Get all analytics data in one call with rate limiting
   async getAllAnalytics(period: string = 'month'): Promise<any> {
     try {
+      // Add a delay between API calls to avoid rate limiting
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
       // First check if we can access the API by making a simple request
       try {
         await apiClient.get('/admin/analytics/metrics/user-activity?period=day');
@@ -103,19 +106,27 @@ export const AnalyticsService = {
         }
       }
 
-      const [
-        mostViewedSongs,
-        mostViewedArtists,
-        mostViewedCollections,
-        userActivity,
-        contentEngagement
-      ] = await Promise.all([
-        this.getMostViewedSongs(5, period),
-        this.getMostViewedArtists(5, period),
-        this.getMostViewedCollections(5, period),
-        this.getUserActivityMetrics(period),
-        this.getContentEngagementMetrics(period)
-      ]);
+      // Instead of making all requests in parallel, make them sequentially with delays
+      console.log('Fetching user activity metrics...');
+      const userActivity = await this.getUserActivityMetrics(period);
+      await delay(300); // Add a 300ms delay between requests
+
+      console.log('Fetching content engagement metrics...');
+      const contentEngagement = await this.getContentEngagementMetrics(period);
+      await delay(300);
+
+      console.log('Fetching most viewed songs...');
+      const mostViewedSongs = await this.getMostViewedSongs(5, period);
+      await delay(300);
+
+      console.log('Fetching most viewed artists...');
+      const mostViewedArtists = await this.getMostViewedArtists(5, period);
+      await delay(300);
+
+      console.log('Fetching most viewed collections...');
+      const mostViewedCollections = await this.getMostViewedCollections(5, period);
+
+      console.log('All analytics data fetched successfully');
 
       return {
         mostViewedSongs,

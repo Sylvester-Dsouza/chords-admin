@@ -44,11 +44,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to refresh the token periodically
   const refreshToken = async (firebaseUser: FirebaseUser) => {
     try {
+      console.log('Refreshing Firebase token...');
+
+      // Force refresh the token
       const idToken = await firebaseUser.getIdToken(true);
+
+      // Store the token and refresh timestamp
       sessionStorage.setItem('firebaseIdToken', idToken);
-      console.log('Token refreshed');
+      sessionStorage.setItem('tokenRefreshTimestamp', Date.now().toString());
+
+      console.log('Token refreshed successfully at', new Date().toISOString());
+      return true;
     } catch (error) {
       console.error('Error refreshing token:', error);
+
+      // Set a flag to indicate refresh failure
+      sessionStorage.setItem('tokenRefreshError', JSON.stringify({
+        timestamp: Date.now(),
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }));
+
+      return false;
     }
   };
 
@@ -66,15 +82,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Get the Firebase ID token
           const idToken = await firebaseUser.getIdToken(true)
 
-          // Set up token refresh interval (refresh every 30 minutes)
+          // Set up token refresh interval (refresh every 15 minutes)
           // Firebase tokens typically expire after 1 hour
           if (tokenRefreshInterval) {
             clearInterval(tokenRefreshInterval);
           }
 
+          // Immediately refresh the token to ensure it's fresh
+          await refreshToken(firebaseUser);
+
+          // Set up a more frequent refresh interval (every 15 minutes)
+          // This ensures we're well ahead of the 1-hour expiration
           tokenRefreshInterval = setInterval(() => {
-            refreshToken(firebaseUser);
-          }, 30 * 60 * 1000); // 30 minutes
+            console.log('Token refresh interval triggered');
+            refreshToken(firebaseUser).then(success => {
+              if (!success) {
+                console.warn('Scheduled token refresh failed, will retry on next interval');
+              }
+            });
+          }, 15 * 60 * 1000); // 15 minutes
+
+          console.log('Token refresh interval set up successfully');
 
           // Store the token in sessionStorage for API requests
           // Using sessionStorage instead of localStorage for better security
@@ -137,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Store authentication state
             localStorage.setItem("isAuthenticated", "true")
-            
+
             console.log("Auth Context - User authenticated and cookie set")
             } else {
               // If the API call fails, sign out from Firebase

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getAuth } from "firebase/auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -11,79 +12,227 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  IconServer,
   IconShieldLock,
-  IconAlertTriangle,
   IconCpu,
   IconDatabase,
   IconRefresh,
   IconDownload,
   IconChartLine,
-  IconClockHour4,
   IconUsers,
   IconBan,
   IconKey,
-  IconEye,
   IconAlertCircle,
-  IconDeviceDesktop,
   IconClock,
   IconCloud
 } from "@tabler/icons-react"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
+import { SystemMonitoringService } from "@/services/system-monitoring.service"
 
-// Mock data for system monitoring
-const systemData = {
-  cpu: 32,
-  memory: 45,
-  disk: 28,
-  requests: 1243,
-  cacheHitRate: 78,
-  avgResponseTime: 120, // in ms
-  activeUsers: 156,
-  blockedIps: 12,
-  securityAlerts: 3,
-  auditLogs: 1245,
-  tokenRotations: 87,
-  suspiciousActivities: 5
+// Define interfaces for system monitoring data
+interface SystemData {
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  uptime: string;
+}
+
+interface RequestsData {
+  total: number;
+  perMinute: number;
+  byEndpoint: {
+    songs: number;
+    artists: number;
+    collections: number;
+    auth: number;
+    admin: number;
+    other: number;
+  };
+}
+
+interface ErrorsData {
+  total: number;
+  rate: number;
+  by4xx: number;
+  by5xx: number;
+}
+
+interface ResponseTimesData {
+  average: number;
+  p95: number;
+  p99: number;
+  byEndpoint: {
+    songs: number;
+    artists: number;
+    collections: number;
+    auth: number;
+    admin: number;
+    other: number;
+  };
+}
+
+interface DatabaseData {
+  connections: number;
+}
+
+interface UsersData {
+  active: number;
+}
+
+interface CacheMemoryData {
+  used: string;
+  max: string;
+  percentage: number;
+}
+
+interface CacheKeysData {
+  total: number;
+  expires: number;
+  persistent: number;
+}
+
+interface CacheData {
+  available: boolean;
+  hitRate: number;
+  memory: CacheMemoryData;
+  keys: CacheKeysData;
+}
+
+interface SecurityData {
+  blockedIps: number;
+  tokenRotations: number;
+}
+
+interface SystemMonitoringData {
+  system: SystemData;
+  requests: RequestsData;
+  errors: ErrorsData;
+  responseTimes: ResponseTimesData;
+  database: DatabaseData;
+  users: UsersData;
+  cache: CacheData;
+  security: SecurityData;
+}
+
+// Default data structure for system monitoring
+const defaultData: SystemMonitoringData = {
+  system: {
+    cpuUsage: 0,
+    memoryUsage: 0,
+    diskUsage: 0,
+    uptime: '0d 0h 0m',
+  },
+  requests: {
+    total: 0,
+    perMinute: 0,
+    byEndpoint: {
+      songs: 0,
+      artists: 0,
+      collections: 0,
+      auth: 0,
+      admin: 0,
+      other: 0,
+    },
+  },
+  errors: {
+    total: 0,
+    rate: 0,
+    by4xx: 0,
+    by5xx: 0,
+  },
+  responseTimes: {
+    average: 0,
+    p95: 0,
+    p99: 0,
+    byEndpoint: {
+      songs: 0,
+      artists: 0,
+      collections: 0,
+      auth: 0,
+      admin: 0,
+      other: 0,
+    },
+  },
+  database: {
+    connections: 0,
+  },
+  users: {
+    active: 0,
+  },
+  cache: {
+    available: false,
+    hitRate: 0,
+    memory: {
+      used: '0 MB',
+      max: '0 MB',
+      percentage: 0,
+    },
+    keys: {
+      total: 0,
+      expires: 0,
+      persistent: 0,
+    },
+  },
+  security: {
+    blockedIps: 0,
+    tokenRotations: 0,
+  },
 }
 
 export default function SystemPage() {
   const [activeTab, setActiveTab] = useState("performance")
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [data, setData] = useState(systemData)
+  const [data, setData] = useState<SystemMonitoringData>(defaultData)
+  const [error, setError] = useState<string | null>(null)
 
-  // Simulate data refresh
-  const refreshData = () => {
+  // Load data from API
+  const loadData = async () => {
     setIsRefreshing(true)
+    setError(null)
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Generate slightly different values for demonstration
-      setData({
-        ...data,
-        cpu: Math.min(100, Math.max(10, data.cpu + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5))),
-        memory: Math.min(100, Math.max(10, data.memory + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5))),
-        disk: Math.min(100, Math.max(10, data.disk + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 2))),
-        requests: data.requests + Math.floor(Math.random() * 10),
-        cacheHitRate: Math.min(100, Math.max(50, data.cacheHitRate + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3))),
-        avgResponseTime: Math.max(80, data.avgResponseTime + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 10)),
-        activeUsers: Math.max(100, data.activeUsers + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5)),
-        securityAlerts: Math.max(0, data.securityAlerts + (Math.random() > 0.8 ? 1 : 0)),
+    try {
+      // Show a loading toast
+      toast.loading("Loading system data...", {
+        id: "system-loading",
+        duration: 5000
       })
-      setIsRefreshing(false)
+
+      // Get performance metrics
+      const performanceData = await SystemMonitoringService.getPerformanceMetrics()
+
+      // Get cache metrics
+      const cacheData = await SystemMonitoringService.getCacheMetrics()
+
+      // Combine data
+      setData({
+        ...performanceData,
+        cache: cacheData,
+      })
+
+      // Dismiss loading toast and show success
+      toast.dismiss("system-loading")
       toast.success("System data refreshed")
-    }, 1000)
+    } catch (err) {
+      console.error("Error loading system data:", err)
+      toast.dismiss("system-loading")
+      toast.error("Failed to load system data")
+      setError("Failed to load system data. Please try again.")
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
-  // Auto refresh every 30 seconds
+  // Load data on mount
   useEffect(() => {
+    loadData()
+
+    // Auto refresh every 30 seconds
     const interval = setInterval(() => {
-      refreshData()
+      loadData()
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [data])
+  }, [])
 
   return (
     <SidebarProvider
@@ -105,9 +254,18 @@ export default function SystemPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing}>
-                <IconRefresh className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Refresh
+              <Button variant="outline" size="sm" onClick={loadData} disabled={isRefreshing}>
+                {isRefreshing ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <IconRefresh className="mr-2 h-4 w-4" />
+                    Refresh
+                  </>
+                )}
               </Button>
               <Button variant="outline" size="sm">
                 <IconDownload className="mr-2 h-4 w-4" />
@@ -115,6 +273,49 @@ export default function SystemPage() {
               </Button>
             </div>
           </div>
+
+          {/* Display error if any */}
+          {error && (
+            <div className="mb-6 p-4 border border-red-200 rounded-md bg-red-50 text-red-600">
+              <div className="flex items-center">
+                <IconAlertCircle className="h-5 w-5 mr-2" />
+                <p>{error}</p>
+              </div>
+              <div className="mt-2 text-sm">
+                <details>
+                  <summary>Debug Information</summary>
+                  <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono whitespace-pre-wrap">
+                    <p>API URL: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}</p>
+                    <p>Auth Status: {typeof window !== 'undefined' && localStorage.getItem('isAuthenticated') ? 'Authenticated (localStorage)' : 'Not authenticated'}</p>
+                    <p>Auth Cookie: {typeof document !== 'undefined' && document.cookie.includes('isAuthenticated=true') ? 'Present' : 'Not present'}</p>
+                    <p>Token in Session Storage: {typeof window !== 'undefined' && sessionStorage.getItem('firebaseIdToken') ? 'Present' : 'Not present'}</p>
+                    <button
+                      className="mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs"
+                      onClick={() => {
+                        // Force token refresh
+                        const auth = getAuth();
+                        const currentUser = auth.currentUser;
+                        if (currentUser) {
+                          currentUser.getIdToken(true).then(token => {
+                            sessionStorage.setItem('firebaseIdToken', token);
+                            alert('Token refreshed: ' + token.substring(0, 10) + '...');
+                            // Reload the page
+                            window.location.reload();
+                          }).catch(err => {
+                            alert('Error refreshing token: ' + err.message);
+                          });
+                        } else {
+                          alert('No current user found');
+                        }
+                      }}
+                    >
+                      Force Token Refresh
+                    </button>
+                  </div>
+                </details>
+              </div>
+            </div>
+          )}
 
           {/* Tabs for different monitoring aspects */}
           <Tabs defaultValue="performance" value={activeTab} onValueChange={setActiveTab}>
@@ -142,10 +343,10 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.cpu}%</div>
-                    <Progress value={data.cpu} className="mt-2" />
+                    <div className="text-2xl font-bold">{data.system?.cpuUsage || 0}%</div>
+                    <Progress value={data.system?.cpuUsage || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Server load is {data.cpu < 50 ? "normal" : data.cpu < 80 ? "moderate" : "high"}
+                      Server load is {(data.system?.cpuUsage || 0) < 50 ? "normal" : (data.system?.cpuUsage || 0) < 80 ? "moderate" : "high"}
                     </p>
                   </CardContent>
                 </Card>
@@ -154,10 +355,10 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.memory}%</div>
-                    <Progress value={data.memory} className="mt-2" />
+                    <div className="text-2xl font-bold">{data.system?.memoryUsage || 0}%</div>
+                    <Progress value={data.system?.memoryUsage || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      {data.memory < 60 ? "Sufficient memory available" : "Consider optimization"}
+                      {(data.system?.memoryUsage || 0) < 60 ? "Sufficient memory available" : "Consider optimization"}
                     </p>
                   </CardContent>
                 </Card>
@@ -166,10 +367,10 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Disk Usage</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.disk}%</div>
-                    <Progress value={data.disk} className="mt-2" />
+                    <div className="text-2xl font-bold">{data.system?.diskUsage || 0}%</div>
+                    <Progress value={data.system?.diskUsage || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      {data.disk < 70 ? "Sufficient space available" : "Consider cleanup"}
+                      {(data.system?.diskUsage || 0) < 70 ? "Sufficient space available" : "Consider cleanup"}
                     </p>
                   </CardContent>
                 </Card>
@@ -178,11 +379,11 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">API Requests</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.requests.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(data.requests?.total || 0).toLocaleString()}</div>
                     <div className="flex items-center mt-2">
                       <IconChartLine className="h-4 w-4 text-green-500 mr-1" />
                       <p className="text-xs text-green-500">
-                        +12% from yesterday
+                        {data.requests?.perMinute || 0} req/min
                       </p>
                     </div>
                   </CardContent>
@@ -202,30 +403,30 @@ export default function SystemPage() {
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">Songs API</span>
-                        <span className="text-sm text-muted-foreground">{data.avgResponseTime - 20}ms</span>
+                        <span className="text-sm text-muted-foreground">{data.responseTimes?.byEndpoint?.songs || 0}ms</span>
                       </div>
-                      <Progress value={((data.avgResponseTime - 20) / 500) * 100} className="h-2" />
+                      <Progress value={((data.responseTimes?.byEndpoint?.songs || 0) / 500) * 100} className="h-2" />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">Artists API</span>
-                        <span className="text-sm text-muted-foreground">{data.avgResponseTime - 40}ms</span>
+                        <span className="text-sm text-muted-foreground">{data.responseTimes?.byEndpoint?.artists || 0}ms</span>
                       </div>
-                      <Progress value={((data.avgResponseTime - 40) / 500) * 100} className="h-2" />
+                      <Progress value={((data.responseTimes?.byEndpoint?.artists || 0) / 500) * 100} className="h-2" />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">Comments API</span>
-                        <span className="text-sm text-muted-foreground">{data.avgResponseTime}ms</span>
+                        <span className="text-sm font-medium">Collections API</span>
+                        <span className="text-sm text-muted-foreground">{data.responseTimes?.byEndpoint?.collections || 0}ms</span>
                       </div>
-                      <Progress value={(data.avgResponseTime / 500) * 100} className="h-2" />
+                      <Progress value={((data.responseTimes?.byEndpoint?.collections || 0) / 500) * 100} className="h-2" />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">Auth API</span>
-                        <span className="text-sm text-muted-foreground">{data.avgResponseTime - 30}ms</span>
+                        <span className="text-sm text-muted-foreground">{data.responseTimes?.byEndpoint?.auth || 0}ms</span>
                       </div>
-                      <Progress value={((data.avgResponseTime - 30) / 500) * 100} className="h-2" />
+                      <Progress value={((data.responseTimes?.byEndpoint?.auth || 0) / 500) * 100} className="h-2" />
                     </div>
                   </div>
                 </CardContent>
@@ -251,19 +452,19 @@ export default function SystemPage() {
                       <div className="divide-y">
                         <div className="grid grid-cols-4 gap-4 p-4">
                           <div className="text-sm">findAllSongsWithFilters</div>
-                          <div className="text-sm">{data.avgResponseTime * 0.8}ms</div>
+                          <div className="text-sm">{data.responseTimes?.average || 0}ms</div>
                           <div className="text-sm">342</div>
                           <div className="text-sm">Yes</div>
                         </div>
                         <div className="grid grid-cols-4 gap-4 p-4">
                           <div className="text-sm">getCommentsByPostId</div>
-                          <div className="text-sm">{data.avgResponseTime}ms</div>
+                          <div className="text-sm">{data.responseTimes?.p95 || 0}ms</div>
                           <div className="text-sm">156</div>
                           <div className="text-sm">Yes</div>
                         </div>
                         <div className="grid grid-cols-4 gap-4 p-4">
                           <div className="text-sm">searchSongsByText</div>
-                          <div className="text-sm">{data.avgResponseTime * 1.2}ms</div>
+                          <div className="text-sm">{data.responseTimes?.p99 || 0}ms</div>
                           <div className="text-sm">89</div>
                           <div className="text-sm">No</div>
                         </div>
@@ -283,10 +484,10 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Cache Hit Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.cacheHitRate}%</div>
-                    <Progress value={data.cacheHitRate} className="mt-2" />
+                    <div className="text-2xl font-bold">{data.cache?.hitRate || 0}%</div>
+                    <Progress value={data.cache?.hitRate || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      {data.cacheHitRate > 75 ? "Excellent" : data.cacheHitRate > 50 ? "Good" : "Needs improvement"}
+                      {(data.cache?.hitRate || 0) > 75 ? "Excellent" : (data.cache?.hitRate || 0) > 50 ? "Good" : "Needs improvement"}
                     </p>
                   </CardContent>
                 </Card>
@@ -295,11 +496,11 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Redis Memory</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">256 MB</div>
+                    <div className="text-2xl font-bold">{data.cache?.memory?.used || '0 MB'}</div>
                     <div className="flex items-center mt-2">
                       <IconCloud className="h-4 w-4 text-blue-500 mr-1" />
                       <p className="text-xs text-muted-foreground">
-                        42% utilized
+                        {data.cache?.memory?.percentage || 0}% utilized
                       </p>
                     </div>
                   </CardContent>
@@ -309,7 +510,7 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Cache Keys</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">1,245</div>
+                    <div className="text-2xl font-bold">{data.cache?.keys?.total?.toLocaleString() || 0}</div>
                     <div className="flex items-center mt-2">
                       <IconKey className="h-4 w-4 text-muted-foreground mr-1" />
                       <p className="text-xs text-muted-foreground">
@@ -426,7 +627,7 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Active Users</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.activeUsers}</div>
+                    <div className="text-2xl font-bold">{data.users?.active || 0}</div>
                     <div className="flex items-center mt-2">
                       <IconUsers className="h-4 w-4 text-blue-500 mr-1" />
                       <p className="text-xs text-muted-foreground">
@@ -440,7 +641,7 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Blocked IPs</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.blockedIps}</div>
+                    <div className="text-2xl font-bold">{data.security?.blockedIps || 0}</div>
                     <div className="flex items-center mt-2">
                       <IconBan className="h-4 w-4 text-red-500 mr-1" />
                       <p className="text-xs text-muted-foreground">
@@ -454,11 +655,11 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Security Alerts</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.securityAlerts}</div>
+                    <div className="text-2xl font-bold">{data.errors?.rate || 0}%</div>
                     <div className="flex items-center mt-2">
                       <IconAlertCircle className="h-4 w-4 text-amber-500 mr-1" />
                       <p className="text-xs text-amber-500">
-                        {data.securityAlerts > 0 ? "Requires attention" : "All clear"}
+                        {(data.errors?.rate || 0) > 1 ? "Requires attention" : "All clear"}
                       </p>
                     </div>
                   </CardContent>
@@ -468,7 +669,7 @@ export default function SystemPage() {
                     <CardTitle className="text-sm font-medium">Token Rotations</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{data.tokenRotations}</div>
+                    <div className="text-2xl font-bold">{data.security?.tokenRotations || 0}</div>
                     <div className="flex items-center mt-2">
                       <IconRefresh className="h-4 w-4 text-green-500 mr-1" />
                       <p className="text-xs text-muted-foreground">

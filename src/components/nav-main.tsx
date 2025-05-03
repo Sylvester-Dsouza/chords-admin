@@ -1,7 +1,7 @@
 "use client"
 
 import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -28,21 +28,6 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  
-  // Custom navigation handler to prevent unwanted redirects
-  const handleNavigation = (url: string, title: string) => {
-    console.log(`NavMain - Navigating to: ${url}, from: ${pathname}, title: ${title}`)
-    
-    // Prevent navigation if we're already on the page
-    if (pathname === url) {
-      console.log(`NavMain - Already on ${url}, preventing navigation`)
-      return
-    }
-    
-    // Use router.push for client-side navigation
-    router.push(url)
-  }
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -96,16 +81,14 @@ export function NavMain({
                         key={subItem.title}
                         asChild
                         className={`w-full justify-start pl-6 ${pathname === subItem.url ? 'bg-accent text-accent-foreground' : ''}`}
-                        onClick={(e) => {
-                          e.preventDefault();
+                        onClick={() => {
                           console.log(`Clicked on subitem: ${subItem.title}, navigating to: ${subItem.url}`);
-                          handleNavigation(subItem.url, subItem.title);
                         }}
                       >
-                        <a href="#">
+                        <Link href={subItem.url}>
                           {subItem.icon && <subItem.icon className="h-4 w-4" />}
                           <span>{subItem.title}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuButton>
                     ))}
                   </div>
@@ -115,16 +98,14 @@ export function NavMain({
                   tooltip={item.title}
                   asChild
                   className={pathname === item.url ? 'bg-accent text-accent-foreground' : ''}
-                  onClick={(e) => {
-                    e.preventDefault();
+                  onClick={() => {
                     console.log(`Clicked on main item: ${item.title}, navigating to: ${item.url}`);
-                    handleNavigation(item.url, item.title);
                   }}
                 >
-                  <a href="#">
+                  <Link href={item.url}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>

@@ -18,9 +18,11 @@ import {
   IconPencil,
   IconCheck,
   IconAlertCircle,
+  IconUpload,
 } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
@@ -164,7 +166,105 @@ export default function CustomersPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
+              {/* Import Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('import-customers')?.click()}
+              >
+                <IconUpload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+              <input
+                id="import-customers"
+                type="file"
+                accept=".csv"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+
+                  try {
+                    // Create FormData
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    // Call API to import data
+                    const response = await fetch('/api/customers/import', {
+                      method: 'POST',
+                      body: formData,
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to import customers');
+                    }
+
+                    const result = await response.json();
+
+                    toast.success(`Imported ${result.imported} customers. ${result.errors?.length || 0} errors.`);
+
+                    // Refresh the customers list
+                    setLoading(true);
+                    customerService.getAllCustomers()
+                      .then(data => {
+                        setCustomers(data);
+                        setError(null);
+                      })
+                      .catch(err => {
+                        console.error('Failed to fetch customers:', err);
+                        setError('Failed to load customers. Please try again later.');
+                      })
+                      .finally(() => {
+                        setLoading(false);
+                      });
+                  } catch (error) {
+                    console.error('Error importing customers:', error);
+                    toast.error("Failed to import customers. Please try again.");
+                  } finally {
+                    // Reset the file input
+                    event.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+
+              {/* Export Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    // Call API to export data
+                    const response = await fetch('/api/customers/export', {
+                      method: 'GET',
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to export customers');
+                    }
+
+                    // Get the CSV data
+                    const csvData = await response.text();
+
+                    // Create a blob and download link
+                    const blob = new Blob([csvData], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `customers-export-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast.success("Customers exported successfully.");
+                  } catch (error) {
+                    console.error('Error exporting customers:', error);
+                    toast.error("Failed to export customers. Please try again.");
+                  }
+                }}
+              >
                 <IconDownload className="mr-2 h-4 w-4" />
                 Export
               </Button>

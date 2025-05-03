@@ -19,6 +19,7 @@ import {
 } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -169,11 +170,105 @@ export default function CollectionsPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
+              {/* Import Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('import-collections')?.click()}
+              >
                 <IconUpload className="mr-2 h-4 w-4" />
                 Import
               </Button>
-              <Button variant="outline" size="sm">
+              <input
+                id="import-collections"
+                type="file"
+                accept=".csv"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+
+                  try {
+                    // Create FormData
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    // Call API to import data
+                    const response = await fetch('/api/collections/import', {
+                      method: 'POST',
+                      body: formData,
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to import collections');
+                    }
+
+                    const result = await response.json();
+
+                    toast.success(`Imported ${result.imported} collections. ${result.errors?.length || 0} errors.`);
+
+                    // Refresh the collections list
+                    setLoading(true);
+                    collectionService.getAllCollections()
+                      .then(data => {
+                        setCollections(data);
+                        setError(null);
+                      })
+                      .catch(err => {
+                        console.error('Failed to fetch collections:', err);
+                        setError('Failed to load collections. Please try again later.');
+                      })
+                      .finally(() => {
+                        setLoading(false);
+                      });
+                  } catch (error) {
+                    console.error('Error importing collections:', error);
+                    toast.error("Failed to import collections. Please try again.");
+                  } finally {
+                    // Reset the file input
+                    event.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+
+              {/* Export Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    // Call API to export data
+                    const response = await fetch('/api/collections/export', {
+                      method: 'GET',
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to export collections');
+                    }
+
+                    // Get the CSV data
+                    const csvData = await response.text();
+
+                    // Create a blob and download link
+                    const blob = new Blob([csvData], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `collections-export-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast.success("Collections exported successfully.");
+                  } catch (error) {
+                    console.error('Error exporting collections:', error);
+                    toast.error("Failed to export collections. Please try again.");
+                  }
+                }}
+              >
                 <IconDownload className="mr-2 h-4 w-4" />
                 Export
               </Button>

@@ -73,23 +73,40 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [data, setData] = useState(mockData)
 
-  // Load data from API
+  // Load data from API with rate limit handling
   const loadData = async () => {
     setIsLoading(true)
 
     try {
+      // Show a loading toast to indicate the process might take some time
+      toast.loading("Loading analytics data...", {
+        id: "analytics-loading",
+        duration: 10000 // 10 seconds
+      })
+
       const analyticsData = await AnalyticsService.getAllAnalytics(period)
       setData(analyticsData)
+
+      // Dismiss the loading toast and show success
+      toast.dismiss("analytics-loading")
       toast.success("Analytics data refreshed")
     } catch (error: any) {
       console.error("Error loading analytics data:", error)
+      toast.dismiss("analytics-loading")
 
       // Check if it's an authentication error
       if (error.message === 'AUTH_ERROR') {
         toast.error("Authentication error. Please log in again.")
         // Don't redirect here - the auth context will handle that
+      } else if (error.response?.status === 429) {
+        // Rate limit error
+        toast.error("Rate limit exceeded. Please wait a moment and try again.", {
+          duration: 5000
+        })
+        // Fallback to mock data in case of error
+        setData(mockData)
       } else {
-        toast.error("Failed to load analytics data")
+        toast.error("Failed to load analytics data. Please try again later.")
         // Fallback to mock data in case of error
         setData(mockData)
       }
@@ -100,10 +117,13 @@ export default function AnalyticsPage() {
 
   // Load data on mount and when period changes
   useEffect(() => {
-    const fetchData = async () => {
+    // Add a debounce to prevent multiple rapid requests when period changes
+    const timer = setTimeout(async () => {
       await loadData()
-    }
-    fetchData()
+    }, 300) // 300ms debounce
+
+    // Cleanup function to clear the timeout if component unmounts or period changes again
+    return () => clearTimeout(timer)
   }, [period])
 
   // Format seconds to minutes and seconds
@@ -133,7 +153,7 @@ export default function AnalyticsPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Select value={period} onValueChange={setPeriod}>
+              <Select value={period} onValueChange={setPeriod} disabled={isLoading}>
                 <SelectTrigger className="w-[180px]">
                   <IconCalendar className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Time Period" />
@@ -147,8 +167,17 @@ export default function AnalyticsPage() {
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" onClick={loadData} disabled={isLoading}>
-                <IconRefresh className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                {isLoading ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <IconRefresh className="mr-2 h-4 w-4" />
+                    Refresh
+                  </>
+                )}
               </Button>
             </div>
           </div>

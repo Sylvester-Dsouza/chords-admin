@@ -39,6 +39,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [tokenExpiredMessage, setTokenExpiredMessage] = useState<string | null>(null)
 
   // Redirect if already logged in
   useEffect(() => {
@@ -46,6 +47,32 @@ export default function LoginPage() {
       router.push('/dashboard')
     }
   }, [user, router])
+
+  // Check for token expiration or refresh failure
+  useEffect(() => {
+    // Check URL parameters for token expiration
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('expired') === 'true') {
+      setTokenExpiredMessage('Your session has expired. Please sign in again.');
+    } else if (searchParams.get('refresh_failed') === 'true') {
+      setTokenExpiredMessage('Unable to refresh your session. Please sign in again.');
+    }
+
+    // Check session storage for token expiration
+    const tokenExpired = sessionStorage.getItem('tokenExpired');
+    const tokenRefreshFailed = sessionStorage.getItem('tokenRefreshFailed');
+
+    if (tokenExpired) {
+      setTokenExpiredMessage('Your session has expired. Please sign in again.');
+      sessionStorage.removeItem('tokenExpired');
+    } else if (tokenRefreshFailed) {
+      setTokenExpiredMessage('Unable to refresh your session. Please sign in again.');
+      sessionStorage.removeItem('tokenRefreshFailed');
+    }
+
+    // Clear any expired tokens
+    sessionStorage.removeItem('firebaseIdToken');
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -76,6 +103,12 @@ export default function LoginPage() {
                 <Alert variant="destructive" className="mb-4">
                   <IconAlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              {tokenExpiredMessage && (
+                <Alert className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
+                  <IconAlertCircle className="h-4 w-4" />
+                  <AlertDescription>{tokenExpiredMessage}</AlertDescription>
                 </Alert>
               )}
               <div className="space-y-2">

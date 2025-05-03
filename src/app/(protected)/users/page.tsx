@@ -16,9 +16,11 @@ import {
   IconEdit,
   IconEye,
   IconAlertCircle,
+  IconUpload,
 } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
@@ -167,7 +169,105 @@ export default function UsersPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
+              {/* Import Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('import-users')?.click()}
+              >
+                <IconUpload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+              <input
+                id="import-users"
+                type="file"
+                accept=".csv"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+
+                  try {
+                    // Create FormData
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    // Call API to import data
+                    const response = await fetch('/api/users/import', {
+                      method: 'POST',
+                      body: formData,
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to import users');
+                    }
+
+                    const result = await response.json();
+
+                    toast.success(`Imported ${result.imported} users. ${result.errors?.length || 0} errors.`);
+
+                    // Refresh the users list
+                    setLoading(true);
+                    userService.getAllUsers()
+                      .then(data => {
+                        setUsers(data);
+                        setError(null);
+                      })
+                      .catch(err => {
+                        console.error('Failed to fetch users:', err);
+                        setError('Failed to load users. Please try again later.');
+                      })
+                      .finally(() => {
+                        setLoading(false);
+                      });
+                  } catch (error) {
+                    console.error('Error importing users:', error);
+                    toast.error("Failed to import users. Please try again.");
+                  } finally {
+                    // Reset the file input
+                    event.target.value = '';
+                  }
+                }}
+                className="hidden"
+              />
+
+              {/* Export Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    // Call API to export data
+                    const response = await fetch('/api/users/export', {
+                      method: 'GET',
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to export users');
+                    }
+
+                    // Get the CSV data
+                    const csvData = await response.text();
+
+                    // Create a blob and download link
+                    const blob = new Blob([csvData], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast.success("Users exported successfully.");
+                  } catch (error) {
+                    console.error('Error exporting users:', error);
+                    toast.error("Failed to export users. Please try again.");
+                  }
+                }}
+              >
                 <IconDownload className="mr-2 h-4 w-4" />
                 Export
               </Button>

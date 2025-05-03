@@ -4,13 +4,8 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Get the pathname of the request
   const path = request.nextUrl.pathname
-  const url = request.url
-  const referer = request.headers.get('referer') || 'No referer'
 
   console.log(`Middleware processing path: ${path}`);
-  console.log(`Full URL: ${url}`);
-  console.log(`Referer: ${referer}`);
-  console.log(`Cookies: ${request.cookies.toString()}`);
 
   // Define public paths that don't require authentication
   const isPublicPath = path === '/login'
@@ -23,6 +18,7 @@ export function middleware(request: NextRequest) {
   // Redirect logic
   if (isPublicPath && isAuthenticated) {
     // If user is on a public path but is authenticated, redirect to dashboard
+    // Redirect to dashboard without the route group in the URL
     console.log(`Redirecting from ${path} to /dashboard`);
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -33,14 +29,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If authenticated, allow navigation to any page
   console.log(`Allowing request to proceed to ${path}`);
-  const response = NextResponse.next();
-  
-  // Add a custom header to track middleware processing
-  response.headers.set('x-middleware-cache', 'no-store');
-  
-  return response;
+  return NextResponse.next()
 }
 
 // Configure the middleware to run on specific paths

@@ -1,20 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { CacheService } from "@/services/cache.service"
+import { SystemMonitoringService } from "@/services/system-monitoring.service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   IconRefresh,
   IconTrash,
-  IconCloud,
   IconDatabase,
-  IconClock,
   IconKey,
   IconSearch,
   IconFilter,
@@ -35,88 +35,161 @@ import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
 
-// Mock cache data
-const cacheStats = {
-  totalMemory: 256, // MB
-  usedMemory: 108, // MB
-  hitRate: 78, // percentage
-  missRate: 22, // percentage
-  keyCount: 1245,
-  operations: 45678,
-  uptime: "3 days, 12 hours",
-  connectedClients: 12
-};
+// Define cache key interface
+interface CacheKey {
+  key: string;
+  type: string;
+  size: string;
+  ttl: string;
+  hits: number;
+}
 
-const cacheKeys = [
-  { key: "song:a1b2c3d4", type: "Song", size: "12 KB", ttl: "30 min", hits: 342 },
-  { key: "songs:list", type: "Song List", size: "45 KB", ttl: "5 min", hits: 1245 },
-  { key: "artist:e5f6g7h8", type: "Artist", size: "8 KB", ttl: "30 min", hits: 156 },
-  { key: "artists:list", type: "Artist List", size: "32 KB", ttl: "5 min", hits: 876 },
-  { key: "chord:C_guitar", type: "Chord Diagram", size: "4 KB", ttl: "24 hours", hits: 2345 },
-  { key: "chord:G_piano", type: "Chord Diagram", size: "5 KB", ttl: "24 hours", hits: 1876 },
-  { key: "auth:token:i9j0k1l2", type: "Auth Token", size: "2 KB", ttl: "15 min", hits: 45 },
-  { key: "user:m3n4o5p6", type: "User", size: "10 KB", ttl: "30 min", hits: 123 },
-  { key: "comment:q7r8s9t0", type: "Comment", size: "6 KB", ttl: "15 min", hits: 78 },
-  { key: "comments:song:u1v2w3x4", type: "Comment List", size: "28 KB", ttl: "5 min", hits: 456 }
-];
+// Define cache stats interface
+interface CacheStats {
+  memory: {
+    used: string;
+    max: string;
+    percentage: number;
+  };
+  keys: {
+    total: number;
+    expires: number;
+    persistent: number;
+  };
+  hitRate: number;
+  available: boolean;
+  topKeys: CacheKey[];
+  uptime: string;
+  connectedClients: number;
+}
+
+// Default cache data structure
+const defaultCacheStats: CacheStats = {
+  memory: {
+    used: '0 MB',
+    max: '0 MB',
+    percentage: 0,
+  },
+  keys: {
+    total: 0,
+    expires: 0,
+    persistent: 0,
+  },
+  hitRate: 0,
+  available: false,
+  topKeys: [],
+  uptime: "0 days, 0 hours",
+  connectedClients: 0
+};
 
 export default function CachePage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("ALL")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [cacheStats, setCacheStats] = useState<CacheStats>(defaultCacheStats)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Load cache data on mount
+  useEffect(() => {
+    loadCacheData();
+  }, []);
+
+  // Load cache data from API
+  const loadCacheData = async () => {
+    setIsRefreshing(true);
+    setError(null);
+
+    try {
+      const cacheData = await SystemMonitoringService.getCacheMetrics();
+      setCacheStats(cacheData);
+    } catch (err) {
+      console.error("Error loading cache data:", err);
+      setError("Failed to load cache data. Please try again.");
+      toast.error("Failed to load cache data");
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   // Filter cache keys based on search term and type filter
-  const filteredKeys = cacheKeys.filter(item => {
+  const filteredKeys = cacheStats.topKeys ? cacheStats.topKeys.filter(item => {
     const matchesSearch = searchTerm === "" ||
       item.key.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType = typeFilter === "ALL" || item.type === typeFilter;
 
     return matchesSearch && matchesType;
-  });
+  }) : [];
 
-  // Simulate refreshing cache stats
-  const refreshStats = () => {
+  // Refresh cache stats
+  const refreshStats = async () => {
     setIsRefreshing(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsRefreshing(false);
+    try {
+      await loadCacheData();
       toast.success("Cache statistics refreshed");
-    }, 1000);
+    } catch (err) {
+      console.error("Error refreshing cache stats:", err);
+      toast.error("Failed to refresh cache statistics");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  // Simulate clearing cache
-  const clearCache = (pattern = "*") => {
+  // Clear all cache
+  const clearCache = async (pattern = "*") => {
     setIsClearing(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      if (pattern === "*") {
+        await CacheService.clearAllCache();
+        toast.success("All cache entries cleared");
+      } else {
+        const prefix = pattern.replace(/:.*$/, '');
+        await CacheService.clearCacheByPrefix(prefix);
+        toast.success(`Cache entries matching '${pattern}' cleared`);
+      }
+
+      // Refresh cache stats after clearing
+      await loadCacheData();
+    } catch (err) {
+      console.error("Error clearing cache:", err);
+      toast.error("Failed to clear cache");
+    } finally {
       setIsClearing(false);
-      toast.success(pattern === "*"
-        ? "All cache entries cleared"
-        : `Cache entries matching '${pattern}' cleared`);
-    }, 1500);
+    }
   };
 
-  // Simulate clearing a specific cache key
-  const clearCacheKey = (key: string) => {
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 800)),
-      {
+  // Clear a specific cache key
+  const clearCacheKey = async (key: string) => {
+    try {
+      // Create a promise that we can await
+      const clearPromise = CacheService.clearCacheKey(key);
+
+      // Show toast with the promise
+      toast.promise(clearPromise, {
         loading: `Clearing cache key ${key}...`,
         success: `Cache key ${key} cleared successfully`,
         error: "Failed to clear cache key"
-      }
-    );
+      });
+
+      // Await the promise
+      await clearPromise;
+
+      // Refresh cache stats after clearing
+      await loadCacheData();
+    } catch (err) {
+      console.error(`Error clearing cache key ${key}:`, err);
+    }
   };
 
   return (
@@ -165,10 +238,10 @@ export default function CachePage() {
                     <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{cacheStats.usedMemory} MB / {cacheStats.totalMemory} MB</div>
-                    <Progress value={(cacheStats.usedMemory / cacheStats.totalMemory) * 100} className="mt-2" />
+                    <div className="text-2xl font-bold">{cacheStats.memory?.used || '0 MB'} / {cacheStats.memory?.max || '0 MB'}</div>
+                    <Progress value={cacheStats.memory?.percentage || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      {Math.round((cacheStats.usedMemory / cacheStats.totalMemory) * 100)}% utilized
+                      {cacheStats.memory?.percentage || 0}% utilized
                     </p>
                   </CardContent>
                 </Card>
@@ -177,10 +250,10 @@ export default function CachePage() {
                     <CardTitle className="text-sm font-medium">Hit Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{cacheStats.hitRate}%</div>
-                    <Progress value={cacheStats.hitRate} className="mt-2" />
+                    <div className="text-2xl font-bold">{cacheStats.hitRate || 0}%</div>
+                    <Progress value={cacheStats.hitRate || 0} className="mt-2" />
                     <p className="text-xs text-muted-foreground mt-2">
-                      {cacheStats.missRate}% miss rate
+                      {100 - (cacheStats.hitRate || 0)}% miss rate
                     </p>
                   </CardContent>
                 </Card>
@@ -189,7 +262,7 @@ export default function CachePage() {
                     <CardTitle className="text-sm font-medium">Cache Keys</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{cacheStats.keyCount.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(cacheStats.keys?.total || 0).toLocaleString()}</div>
                     <div className="flex items-center mt-2">
                       <IconKey className="h-4 w-4 text-muted-foreground mr-1" />
                       <p className="text-xs text-muted-foreground">
@@ -203,11 +276,11 @@ export default function CachePage() {
                     <CardTitle className="text-sm font-medium">Operations</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{cacheStats.operations.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(cacheStats.keys?.expires || 0).toLocaleString()}</div>
                     <div className="flex items-center mt-2">
                       <IconDatabase className="h-4 w-4 text-muted-foreground mr-1" />
                       <p className="text-xs text-muted-foreground">
-                        Total operations
+                        Keys with expiration
                       </p>
                     </div>
                   </CardContent>
@@ -224,16 +297,18 @@ export default function CachePage() {
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Status:</span>
                         <span className="text-sm font-medium">
-                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Online</Badge>
+                          <Badge variant="outline" className={cacheStats.available ? "bg-green-50 text-green-600 border-green-200" : "bg-red-50 text-red-600 border-red-200"}>
+                            {cacheStats.available ? "Online" : "Offline"}
+                          </Badge>
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Uptime:</span>
-                        <span className="text-sm font-medium">{cacheStats.uptime}</span>
+                        <span className="text-sm text-muted-foreground">Memory Type:</span>
+                        <span className="text-sm font-medium">{cacheStats.available ? "Redis" : "Not Available"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Connected Clients:</span>
-                        <span className="text-sm font-medium">{cacheStats.connectedClients}</span>
+                        <span className="text-sm text-muted-foreground">Persistent Keys:</span>
+                        <span className="text-sm font-medium">{cacheStats.keys?.persistent || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Version:</span>
@@ -248,22 +323,40 @@ export default function CachePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Songs:</span>
-                        <span className="text-sm font-medium">342 keys</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Artists:</span>
-                        <span className="text-sm font-medium">156 keys</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Chord Diagrams:</span>
-                        <span className="text-sm font-medium">423 keys</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Auth Tokens:</span>
-                        <span className="text-sm font-medium">78 keys</span>
-                      </div>
+                      {loading ? (
+                        <div className="flex justify-center py-4">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        </div>
+                      ) : error ? (
+                        <div className="flex justify-center py-4 text-red-500">
+                          <IconAlertCircle className="h-5 w-5 mr-2" />
+                          <span>{error}</span>
+                        </div>
+                      ) : !cacheStats.available ? (
+                        <div className="flex justify-center py-4 text-amber-500">
+                          <IconAlertCircle className="h-5 w-5 mr-2" />
+                          <span>Redis cache not available</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Total Keys:</span>
+                            <span className="text-sm font-medium">{cacheStats.keys?.total || 0} keys</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Expiring Keys:</span>
+                            <span className="text-sm font-medium">{cacheStats.keys?.expires || 0} keys</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Persistent Keys:</span>
+                            <span className="text-sm font-medium">{cacheStats.keys?.persistent || 0} keys</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Hit Rate:</span>
+                            <span className="text-sm font-medium">{cacheStats.hitRate || 0}%</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -317,52 +410,76 @@ export default function CachePage() {
               </div>
 
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Key</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>TTL</TableHead>
-                      <TableHead>Hits</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredKeys.map((item) => (
-                      <TableRow key={item.key}>
-                        <TableCell className="font-mono text-sm">{item.key}</TableCell>
-                        <TableCell>{item.type}</TableCell>
-                        <TableCell>{item.size}</TableCell>
-                        <TableCell>{item.ttl}</TableCell>
-                        <TableCell>{item.hits.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm" onClick={() => clearCacheKey(item.key)}>
-                              <IconTrash className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <IconEye className="h-4 w-4" />
-                              <span className="sr-only">View</span>
-                            </Button>
-                          </div>
-                        </TableCell>
+                {loading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="ml-3">Loading cache keys...</span>
+                  </div>
+                ) : error ? (
+                  <div className="flex justify-center items-center py-12 text-red-500">
+                    <IconAlertCircle className="h-6 w-6 mr-2" />
+                    <span>{error}</span>
+                  </div>
+                ) : !cacheStats.available ? (
+                  <div className="flex justify-center items-center py-12 text-amber-500">
+                    <IconAlertCircle className="h-6 w-6 mr-2" />
+                    <span>Redis cache not available</span>
+                  </div>
+                ) : filteredKeys.length === 0 ? (
+                  <div className="flex justify-center items-center py-12 text-muted-foreground">
+                    <IconAlertCircle className="h-6 w-6 mr-2" />
+                    <span>No cache keys found</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Key</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>TTL</TableHead>
+                        <TableHead>Hits</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredKeys.map((item) => (
+                        <TableRow key={item.key}>
+                          <TableCell className="font-mono text-sm">{item.key}</TableCell>
+                          <TableCell>{item.type}</TableCell>
+                          <TableCell>{item.size}</TableCell>
+                          <TableCell>{item.ttl}</TableCell>
+                          <TableCell>{item.hits.toLocaleString()}</TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button variant="ghost" size="sm" onClick={() => clearCacheKey(item.key)}>
+                                <IconTrash className="h-4 w-4" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <IconEye className="h-4 w-4" />
+                                <span className="sr-only">View</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <div className="text-sm text-muted-foreground">
-                Showing {filteredKeys.length} of {cacheKeys.length} cache keys
+                {cacheStats.topKeys ?
+                  `Showing ${filteredKeys.length} of ${cacheStats.topKeys.length} cache keys` :
+                  "No cache keys available"}
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={() => clearCache("song:*")}>
+                <Button variant="outline" size="sm" onClick={() => clearCache("song:*")} disabled={!cacheStats.available || isClearing}>
                   Clear Song Cache
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => clearCache("auth:*")}>
+                <Button variant="outline" size="sm" onClick={() => clearCache("auth:*")} disabled={!cacheStats.available || isClearing}>
                   Clear Auth Cache
                 </Button>
               </div>
