@@ -192,8 +192,16 @@ export default function UsersPage() {
                     formData.append('file', file);
 
                     // Call API to import data
-                    const response = await fetch('/api/users/import', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/import/csv`, {
                       method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                       body: formData,
                     });
 
@@ -237,8 +245,16 @@ export default function UsersPage() {
                 onClick={async () => {
                   try {
                     // Call API to export data
-                    const response = await fetch('/api/users/export', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/export/csv`, {
                       method: 'GET',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                     });
 
                     if (!response.ok) {

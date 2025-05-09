@@ -21,6 +21,8 @@ export interface Song {
   difficulty?: string | null;
   chordSheet: string;
   imageUrl?: string | null; // Cover image URL from Supabase Storage
+  officialVideoUrl?: string | null; // URL to the official music video
+  tutorialVideoUrl?: string | null; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
   tags: string[];
   songTags?: {
@@ -48,6 +50,8 @@ export interface CreateSongDto {
   difficulty?: string;
   chordSheet: string;
   imageUrl?: string;
+  officialVideoUrl?: string; // URL to the official music video
+  tutorialVideoUrl?: string; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
   tags?: string[];
 }
@@ -62,6 +66,8 @@ export interface UpdateSongDto {
   difficulty?: string;
   chordSheet?: string;
   imageUrl?: string;
+  officialVideoUrl?: string; // URL to the official music video
+  tutorialVideoUrl?: string; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
   tags?: string[];
 }

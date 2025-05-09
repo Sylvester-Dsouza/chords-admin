@@ -58,6 +58,8 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
     capo: initialData?.capo || 0, // Default to 0 (no capo)
     chordSheet: initialData?.chordSheet || "",
     imageUrl: initialData?.imageUrl || "",
+    officialVideoUrl: initialData?.officialVideoUrl || "",
+    tutorialVideoUrl: initialData?.tutorialVideoUrl || "",
     tags: initialData?.tags || []
   })
 
@@ -249,6 +251,8 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
         capo: formState.capo, // Add capo position
         chordSheet: formState.chordSheet,
         imageUrl: imageUrl || undefined,
+        officialVideoUrl: formState.officialVideoUrl || undefined,
+        tutorialVideoUrl: formState.tutorialVideoUrl || undefined,
         // Include tag names in the legacy tags field for backward compatibility
         tags: selectedTags.map(tagId => {
           const tag = availableTags.find(t => t.id === tagId);
@@ -659,53 +663,90 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                 </CardContent>
               </Card>
 
-              {/* Right column: Cover Image */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cover Image</CardTitle>
-                  <CardDescription>
-                    Upload a cover image for the song
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <ImageUpload
-                      folder={STORAGE_FOLDERS.SONG_COVERS}
-                      onImageSelected={(file, previewUrl) => {
-                        setImageFile(file);
-                        // Set a temporary preview URL for display
-                        if (previewUrl) {
-                          setFormState({...formState, imageUrl: previewUrl});
-                        } else {
-                          setFormState({...formState, imageUrl: ''});
-                        }
-                      }}
-                      onImageRemoved={(previousUrl) => {
-                        // Mark the image for deletion when the form is submitted
-                        if (previousUrl.startsWith('http')) {
-                          setImageToDelete(previousUrl);
-                          // Also update the form state to clear the imageUrl
-                          setFormState({...formState, imageUrl: ''});
-                        }
-                      }}
-                      defaultImage={formState.imageUrl}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Upload a square image (1:1 aspect ratio) for best results
-                    </p>
-                  </div>
+              <div className="space-y-6">
+                {/* Cover Image Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Cover Image</CardTitle>
+                    <CardDescription>
+                      Upload a cover image for the song
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <ImageUpload
+                        folder={STORAGE_FOLDERS.SONG_COVERS}
+                        onImageSelected={(file, previewUrl) => {
+                          setImageFile(file);
+                          // Set a temporary preview URL for display
+                          if (previewUrl) {
+                            setFormState({...formState, imageUrl: previewUrl});
+                          } else {
+                            setFormState({...formState, imageUrl: ''});
+                          }
+                        }}
+                        onImageRemoved={(previousUrl) => {
+                          // Mark the image for deletion when the form is submitted
+                          if (previousUrl.startsWith('http')) {
+                            setImageToDelete(previousUrl);
+                            // Also update the form state to clear the imageUrl
+                            setFormState({...formState, imageUrl: ''});
+                          }
+                        }}
+                        defaultImage={formState.imageUrl}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Upload a square image (1:1 aspect ratio) for best results
+                      </p>
+                    </div>
 
-                  <div className="space-y-2 mt-6">
-                    <h3 className="text-sm font-medium">Image Guidelines</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
-                      <li>Use a high-quality image (minimum 500x500 pixels)</li>
-                      <li>Square format (1:1 aspect ratio) works best</li>
-                      <li>JPG or PNG format recommended</li>
-                      <li>Keep file size under 2MB for faster loading</li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="space-y-2 mt-6">
+                      <h3 className="text-sm font-medium">Image Guidelines</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                        <li>Use a high-quality image (minimum 500x500 pixels)</li>
+                        <li>Square format (1:1 aspect ratio) works best</li>
+                        <li>JPG or PNG format recommended</li>
+                        <li>Keep file size under 2MB for faster loading</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Videos Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Videos</CardTitle>
+                    <CardDescription>
+                      Add YouTube video links for this song
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Official Music Video URL</label>
+                      <Input
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        value={formState.officialVideoUrl}
+                        onChange={(e) => setFormState({...formState, officialVideoUrl: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Link to the official music video on YouTube
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Tutorial Video URL</label>
+                      <Input
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        value={formState.tutorialVideoUrl}
+                        onChange={(e) => setFormState({...formState, tutorialVideoUrl: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Link to a tutorial video showing how to play the song
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Full-width Chords section */}

@@ -61,6 +61,7 @@ export default function ArtistsPage() {
   const router = useRouter()
   const [artists, setArtists] = React.useState<Artist[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [importing, setImporting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedArtists, setSelectedArtists] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -79,16 +80,25 @@ export default function ArtistsPage() {
         setLoading(true)
         const data = await artistService.getAllArtists()
 
+        // Log the raw data from API to debug
+        console.log('Initial load - Raw artist data from API:', data);
+
         // Add placeholder values for songCount, totalViews, and isFeatured
-        const artistsWithStats = data.map(artist => ({
-          ...artist,
-          songCount: 0, // This would need to be fetched from the API
-          totalViews: Math.floor(Math.random() * 50000), // Placeholder
-          isFeatured: artist.isFeatured ?? Math.random() > 0.5, // Use existing value or placeholder
-          // Convert string dates to Date objects if needed
-          createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
-          updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
-        }))
+        const artistsWithStats = data.map(artist => {
+          // Log each artist's featured status
+          console.log(`Initial load - Artist ${artist.name} (${artist.id}) - isFeatured:`, artist.isFeatured);
+
+          return {
+            ...artist,
+            songCount: 0, // This would need to be fetched from the API
+            totalViews: Math.floor(Math.random() * 50000), // Placeholder
+            // Keep the original isFeatured value from the API
+            isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+            // Convert string dates to Date objects if needed
+            createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+            updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+          };
+        })
 
         setArtists(artistsWithStats)
         setError(null)
@@ -143,12 +153,22 @@ export default function ArtistsPage() {
   }
 
   // Format date for display
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+  const formatDate = (date: Date | string) => {
+    if (!date) return '-';
+
+    try {
+      // If it's a string, convert to Date object
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      return dateObj.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '-';
+    }
   }
 
   return (
@@ -176,9 +196,19 @@ export default function ArtistsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => document.getElementById('import-artists')?.click()}
+                disabled={importing}
               >
-                <IconUpload className="mr-2 h-4 w-4" />
-                Import
+                {importing ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <IconUpload className="mr-2 h-4 w-4" />
+                    Import
+                  </>
+                )}
               </Button>
               <input
                 id="import-artists"
@@ -189,53 +219,106 @@ export default function ArtistsPage() {
                   if (!file) return;
 
                   try {
-                    // Create FormData
-                    const formData = new FormData();
-                    formData.append('file', file);
+                    // Show importing state
+                    setImporting(true);
 
-                    // Call API to import data
-                    const response = await fetch('/api/artists/import', {
-                      method: 'POST',
-                      body: formData,
-                    });
+                    // Log the file details for debugging
+                    console.log('Importing file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-                    if (!response.ok) {
-                      throw new Error('Failed to import artists');
-                    }
-
-                    const result = await response.json();
-
-                    toast.success(`Imported ${result.imported} artists. ${result.errors?.length || 0} errors.`);
-
-                    // Refresh the artists list
-                    const fetchArtists = async () => {
+                    // Read the file content to validate the CSV format
+                    const fileReader = new FileReader();
+                    fileReader.onload = async (e) => {
                       try {
-                        setLoading(true);
-                        const data = await artistService.getAllArtists();
-                        setArtists(data.map(artist => ({
-                          ...artist,
-                          songCount: 0,
-                          totalViews: Math.floor(Math.random() * 50000),
-                          isFeatured: artist.isFeatured ?? Math.random() > 0.5,
-                          createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
-                          updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
-                        })));
-                        setError(null);
-                      } catch (err) {
-                        console.error('Failed to fetch artists:', err);
-                        setError('Failed to load artists. Please try again later.');
-                      } finally {
-                        setLoading(false);
+                        const content = e.target?.result as string;
+                        console.log('CSV content preview:', content.substring(0, 500));
+
+                        // Check if the CSV has the isFeatured column
+                        const lines = content.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim());
+
+                        if (!headers.includes('isFeatured')) {
+                          toast.error('CSV file must include an "isFeatured" column');
+                          setImporting(false);
+                          return;
+                        }
+
+                        // Create FormData with the file
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        // Call API to import data
+                        const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                        if (!token) {
+                          throw new Error('Authentication token not found. Please log in again.');
+                        }
+
+                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/artists/import/csv`, {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                          },
+                          body: formData,
+                        });
+
+                        if (!response.ok) {
+                          throw new Error('Failed to import artists');
+                        }
+
+                        const result = await response.json();
+                        console.log('Import API response:', result);
+
+                        // Show success message
+                        toast.success(`Imported ${result.imported} artists. ${result.errors?.length || 0} errors.`);
+
+                        // Refresh the artists list
+                        try {
+                          setLoading(true);
+                          const data = await artistService.getAllArtists();
+
+                          // Log the raw data from API to debug
+                          console.log('Raw artist data from API:', data);
+
+                          const processedArtists = data.map((artist: any) => {
+                            // Log each artist's featured status
+                            console.log(`Artist ${artist.name} (${artist.id}) - isFeatured:`, artist.isFeatured);
+
+                            return {
+                              ...artist,
+                              songCount: 0,
+                              totalViews: Math.floor(Math.random() * 50000),
+                              // Keep the original isFeatured value from the API
+                              isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+                              createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+                              updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+                            };
+                          });
+
+                          setArtists(processedArtists);
+                          setError(null);
+                        } catch (err) {
+                          console.error('Failed to fetch artists:', err);
+                          setError('Failed to load artists. Please try again later.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      } catch (error) {
+                        console.error('Error processing CSV:', error);
+                        toast.error('Failed to process CSV file. Please check the format and try again.');
+                        setImporting(false);
                       }
                     };
 
-                    fetchArtists();
+                    fileReader.readAsText(file);
                   } catch (error) {
                     console.error('Error importing artists:', error);
                     toast.error('Failed to import artists. Please try again.');
                   } finally {
                     // Reset the file input
-                    event.target.value = '';
+                    if (event.target) {
+                      event.target.value = '';
+                    }
+                    // Hide importing state
+                    setImporting(false);
                   }
                 }}
                 className="hidden"
@@ -248,8 +331,16 @@ export default function ArtistsPage() {
                 onClick={async () => {
                   try {
                     // Call API to export data
-                    const response = await fetch('/api/artists/export', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/artists/export/csv`, {
                       method: 'GET',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                     });
 
                     if (!response.ok) {
@@ -281,6 +372,39 @@ export default function ArtistsPage() {
               >
                 <IconDownload className="mr-2 h-4 w-4" />
                 Export
+              </Button>
+
+              {/* Download Template Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  try {
+                    // Create a sample CSV template
+                    const csvTemplate = 'id,name,bio,imageUrl,website,isFeatured,createdAt,updatedAt\n,Artist Name,Artist Bio,,,true,,';
+
+                    // Create a blob and download link
+                    const blob = new Blob([csvTemplate], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'artists-template.csv';
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast.success('CSV template downloaded successfully.');
+                  } catch (error) {
+                    console.error('Error downloading template:', error);
+                    toast.error('Failed to download template. Please try again.');
+                  }
+                }}
+              >
+                <IconDownload className="mr-2 h-4 w-4" />
+                Template
               </Button>
               <Button
                 variant="default"
@@ -453,6 +577,14 @@ export default function ArtistsPage() {
               <div className="flex justify-center items-center p-8">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                 <span className="ml-3">Loading artists...</span>
+              </div>
+            )}
+
+            {/* Importing state */}
+            {importing && !loading && (
+              <div className="flex justify-center items-center p-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                <span className="ml-3">Importing artists... This may take a moment.</span>
               </div>
             )}
 

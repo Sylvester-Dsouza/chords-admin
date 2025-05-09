@@ -189,8 +189,16 @@ export default function CustomersPage() {
                     formData.append('file', file);
 
                     // Call API to import data
-                    const response = await fetch('/api/customers/import', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers/import/csv`, {
                       method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                       body: formData,
                     });
 
@@ -234,8 +242,16 @@ export default function CustomersPage() {
                 onClick={async () => {
                   try {
                     // Call API to export data
-                    const response = await fetch('/api/customers/export', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers/export/csv`, {
                       method: 'GET',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                     });
 
                     if (!response.ok) {

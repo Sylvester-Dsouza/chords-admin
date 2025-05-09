@@ -193,8 +193,16 @@ export default function CollectionsPage() {
                     formData.append('file', file);
 
                     // Call API to import data
-                    const response = await fetch('/api/collections/import', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/import/csv`, {
                       method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                       body: formData,
                     });
 
@@ -238,8 +246,16 @@ export default function CollectionsPage() {
                 onClick={async () => {
                   try {
                     // Call API to export data
-                    const response = await fetch('/api/collections/export', {
+                    const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                    if (!token) {
+                      throw new Error('Authentication token not found. Please log in again.');
+                    }
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/export/csv`, {
                       method: 'GET',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                      },
                     });
 
                     if (!response.ok) {

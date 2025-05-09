@@ -24,7 +24,6 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -59,6 +58,7 @@ export default function SongsPage() {
   const router = useRouter()
   const [songs, setSongs] = React.useState<Song[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [importing, setImporting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedSongs, setSelectedSongs] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -140,12 +140,22 @@ export default function SongsPage() {
   }
 
   // Format date for display
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+  const formatDate = (date: Date | string) => {
+    if (!date) return '-';
+
+    try {
+      // If it's a string, convert to Date object
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      return dateObj.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '-';
+    }
   }
 
   // Add a state to track if this is the initial render
@@ -187,9 +197,19 @@ export default function SongsPage() {
             variant="outline"
             size="sm"
             onClick={() => document.getElementById('import-songs')?.click()}
+            disabled={importing}
           >
-            <IconUpload className="mr-2 h-4 w-4" />
-            Import
+            {importing ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                Importing...
+              </>
+            ) : (
+              <>
+                <IconUpload className="mr-2 h-4 w-4" />
+                Import
+              </>
+            )}
           </Button>
           <input
             id="import-songs"
@@ -200,13 +220,24 @@ export default function SongsPage() {
               if (!file) return;
 
               try {
+                // Show importing state
+                setImporting(true);
+
                 // Create FormData
                 const formData = new FormData();
                 formData.append('file', file);
 
                 // Call API to import data
-                const response = await fetch('/api/songs/import', {
+                const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                if (!token) {
+                  throw new Error('Authentication token not found. Please log in again.');
+                }
+
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/songs/import/csv`, {
                   method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
                   body: formData,
                 });
 
@@ -238,6 +269,8 @@ export default function SongsPage() {
               } finally {
                 // Reset the file input
                 event.target.value = '';
+                // Hide importing state
+                setImporting(false);
               }
             }}
             className="hidden"
@@ -250,8 +283,16 @@ export default function SongsPage() {
             onClick={async () => {
               try {
                 // Call API to export data
-                const response = await fetch('/api/songs/export', {
+                const token = typeof window !== 'undefined' ? sessionStorage.getItem('firebaseIdToken') : null;
+                if (!token) {
+                  throw new Error('Authentication token not found. Please log in again.');
+                }
+
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/songs/export/csv`, {
                   method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
                 });
 
                 if (!response.ok) {
@@ -489,6 +530,14 @@ export default function SongsPage() {
           <div className="flex justify-center items-center p-8">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             <span className="ml-3">Loading songs...</span>
+          </div>
+        )}
+
+        {/* Importing state */}
+        {importing && !loading && (
+          <div className="flex justify-center items-center p-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <span className="ml-3">Importing songs... This may take a moment.</span>
           </div>
         )}
 
