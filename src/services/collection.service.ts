@@ -70,6 +70,24 @@ const collectionService = {
     }
   },
 
+  // Alias for getCollectionById to match naming convention used in content management
+  getCollection: async (id: string): Promise<Collection> => {
+    return collectionService.getCollectionById(id);
+  },
+
+  // Search collections
+  searchCollections: async (query: string): Promise<Collection[]> => {
+    try {
+      console.log(`Searching collections with query: ${query}`);
+      const response = await apiClient.get<Collection[]>(`/collections/search?q=${encodeURIComponent(query)}`);
+      console.log('Collections search results:', response.data);
+      return response.data.map(collection => ({ ...collection, selected: false }));
+    } catch (error) {
+      console.error('Error searching collections:', error);
+      throw error;
+    }
+  },
+
   // Create a new collection
   createCollection: async (collectionData: CreateCollectionDto): Promise<Collection> => {
     try {

@@ -56,6 +56,19 @@ const artistService = {
     }
   },
 
+  // Search artists
+  searchArtists: async (query: string): Promise<Artist[]> => {
+    try {
+      console.log(`Searching artists with query: ${query}`);
+      const response = await apiClient.get<Artist[]>(`/artists/search?q=${encodeURIComponent(query)}`);
+      console.log('Artists search results:', response.data);
+      return response.data.map(artist => ({ ...artist, selected: false }));
+    } catch (error) {
+      console.error('Error searching artists:', error);
+      throw error;
+    }
+  },
+
   // Get an artist by ID
   getArtistById: async (id: string): Promise<Artist> => {
     try {
@@ -67,6 +80,11 @@ const artistService = {
       console.error(`Error fetching artist with ID ${id}:`, error);
       throw error;
     }
+  },
+
+  // Alias for getArtistById to match naming convention used in content management
+  getArtist: async (id: string): Promise<Artist> => {
+    return artistService.getArtistById(id);
   },
 
   // Create a new artist

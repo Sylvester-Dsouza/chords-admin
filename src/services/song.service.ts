@@ -110,6 +110,24 @@ const songService = {
     }
   },
 
+  // Alias for getSongById to match naming convention used in content management
+  getSong: async (id: string): Promise<Song> => {
+    return songService.getSongById(id);
+  },
+
+  // Search songs
+  searchSongs: async (query: string): Promise<Song[]> => {
+    try {
+      console.log(`Searching songs with query: ${query}`);
+      const response = await apiClient.get<Song[]>(`/songs/search?q=${encodeURIComponent(query)}`);
+      console.log('Songs search results:', response.data);
+      return response.data.map(song => ({ ...song, selected: false }));
+    } catch (error) {
+      console.error('Error searching songs:', error);
+      throw error;
+    }
+  },
+
   // Create a new song
   createSong: async (songData: CreateSongDto): Promise<Song> => {
     try {

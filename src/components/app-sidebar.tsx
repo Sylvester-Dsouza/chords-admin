@@ -35,7 +35,8 @@ import {
   IconCpu,
   IconClockHour4,
   IconLayoutDashboard,
-  IconBug
+  IconBug,
+  IconHome
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -147,6 +148,11 @@ const data = {
       title: "Ratings",
       url: "/ratings",
       icon: IconStar,
+    },
+    {
+      title: "Home Page",
+      url: "/home-sections",
+      icon: IconHome,
     },
   ],
   navSecondary: [

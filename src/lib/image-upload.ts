@@ -5,6 +5,7 @@ export const STORAGE_FOLDERS = {
   SONG_COVERS: 'song-cover',
   ARTIST_COVERS: 'artist-cover',
   COLLECTION_COVERS: 'collection-cover',
+  BANNER_IMAGES: 'banner-image',
 };
 
 /**
