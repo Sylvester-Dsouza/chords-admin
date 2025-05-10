@@ -143,6 +143,11 @@ const data = {
       url: "/comments",
       icon: IconMessageCircle,
     },
+    {
+      title: "Ratings",
+      url: "/ratings",
+      icon: IconStar,
+    },
   ],
   navSecondary: [
     {

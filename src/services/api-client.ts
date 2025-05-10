@@ -7,12 +7,22 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds
 });
+
+// Log the API base URL for debugging
+console.log('API Client initialized with baseURL:', apiClient.defaults.baseURL);
 
 // Add a request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
+      // Log the request details for debugging
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+        params: config.params,
+        data: config.data,
+      });
+
       const auth = getAuth();
       const currentUser = auth.currentUser;
 
@@ -28,6 +38,7 @@ apiClient.interceptors.request.use(
         // Add the token to the headers
         if (config.headers) {
           config.headers.Authorization = `Bearer ${idToken}`;
+          console.log('Added auth token to request headers');
         }
       } else {
         // Try to get the token from sessionStorage as a fallback
@@ -35,6 +46,7 @@ apiClient.interceptors.request.use(
 
         if (storedToken && config.headers) {
           config.headers.Authorization = `Bearer ${storedToken}`;
+          console.log('Added stored auth token to request headers');
         } else {
           console.warn('No auth token available for request');
         }
@@ -50,12 +62,22 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Add a response interceptor to handle token expiration
+// Add a response interceptor to handle token expiration and log responses
 apiClient.interceptors.response.use(
   (response) => {
+    // Log successful responses
+    console.log(`API Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      data: response.data,
+    });
     return response;
   },
-  async (error) => {
+  async (error: AxiosError) => {
+    // Log error responses
+    console.error(`API Error: ${error.response?.status || 'Unknown'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+      message: error.message,
+      response: error.response?.data,
+    });
+
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // If the error is due to an expired token (401 Unauthorized) and we haven't retried yet
