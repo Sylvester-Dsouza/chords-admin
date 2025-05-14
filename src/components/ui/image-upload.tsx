@@ -108,7 +108,7 @@ export function ImageUpload({
       />
 
       {image ? (
-        <div className="relative w-full max-w-[300px] aspect-square mb-2">
+        <div className="relative w-full max-w-[300px] mx-auto aspect-video mb-2">
           <Image
             src={image}
             alt="Uploaded image"
@@ -126,11 +126,11 @@ export function ImageUpload({
         </div>
       ) : (
         <div
-          className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md w-full max-w-[300px] aspect-square flex flex-col items-center justify-center cursor-pointer hover:border-primary mb-2"
+          className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md w-full max-w-[300px] mx-auto aspect-video flex flex-col items-center justify-center cursor-pointer hover:border-primary mb-2"
           onClick={handleButtonClick}
         >
           <IconPhoto size={48} className="text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">Click to upload image</p>
+          <p className="text-sm text-muted-foreground text-center px-2">Click to upload image</p>
         </div>
       )}
 
@@ -138,7 +138,7 @@ export function ImageUpload({
         type="button"
         variant="outline"
         onClick={handleButtonClick}
-        className="mt-2"
+        className="mt-2 w-full sm:w-auto mx-auto"
       >
         <span className="flex items-center">
           <IconUpload size={16} className="mr-2" />

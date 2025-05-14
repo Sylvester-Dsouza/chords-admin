@@ -209,7 +209,7 @@ export default function HomeSectionsPage() {
     title: "",
     type: SectionType.COLLECTIONS,
     isActive: true,
-    itemCount: 10,
+    itemCount: 10, // This will be set to 0 for BANNER type sections
   })
 
   // Load sections
@@ -233,18 +233,41 @@ export default function HomeSectionsPage() {
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+
+    // For numeric fields, ensure we're sending a valid number
+    if (name === "itemCount") {
+      // Parse as integer and ensure it's within valid range
+      const parsedValue = parseInt(value, 10)
+      const validValue = isNaN(parsedValue) ? 0 : Math.min(Math.max(parsedValue, 0), 50)
+
+      setFormData({
+        ...formData,
+        [name]: validValue,
+      })
+    } else {
+      // Handle other fields normally
+      setFormData({
+        ...formData,
+        [name]: value,
+      })
+    }
   }
 
   // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    if (name === "type" && value === SectionType.BANNER) {
+      // For banner sections, set itemCount to 0 as it's not used
+      setFormData({
+        ...formData,
+        [name]: value,
+        itemCount: 0,
+      })
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      })
+    }
   }
 
   // Handle switch changes
@@ -258,21 +281,30 @@ export default function HomeSectionsPage() {
   // Handle create section
   const handleCreateSection = async () => {
     try {
-      const newSection = await homeSectionService.createSection(formData)
-      setSections([...sections, newSection])
-      setIsCreateDialogOpen(false)
-      toast.success("Home section created successfully.")
+      // Ensure itemCount is a valid integer
+      const dataToSubmit = {
+        ...formData,
+        itemCount: formData.type === SectionType.BANNER ? 0 :
+                  (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
+      };
 
-      // Reset form data
+      console.log("Submitting home section data:", dataToSubmit);
+
+      const newSection = await homeSectionService.createSection(dataToSubmit);
+      setSections([...sections, newSection]);
+      setIsCreateDialogOpen(false);
+      toast.success("Home section created successfully.");
+
+      // Reset form data with appropriate defaults
       setFormData({
         title: "",
         type: SectionType.COLLECTIONS,
         isActive: true,
-        itemCount: 10,
-      })
+        itemCount: 10, // Default for non-banner sections
+      });
     } catch (error) {
-      console.error("Error creating home section:", error)
-      toast.error("Failed to create home section. Please try again.")
+      console.error("Error creating home section:", error);
+      toast.error("Failed to create home section. Please try again.");
     }
   }
 
@@ -281,13 +313,22 @@ export default function HomeSectionsPage() {
     if (!currentSection) return
 
     try {
-      const updatedSection = await homeSectionService.updateSection(currentSection.id, formData)
-      setSections(sections.map(section => section.id === updatedSection.id ? updatedSection : section))
-      setIsEditDialogOpen(false)
-      toast.success("Home section updated successfully.")
+      // Ensure itemCount is a valid integer
+      const dataToSubmit = {
+        ...formData,
+        itemCount: formData.type === SectionType.BANNER ? 0 :
+                  (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
+      };
+
+      console.log("Updating home section data:", dataToSubmit);
+
+      const updatedSection = await homeSectionService.updateSection(currentSection.id, dataToSubmit);
+      setSections(sections.map(section => section.id === updatedSection.id ? updatedSection : section));
+      setIsEditDialogOpen(false);
+      toast.success("Home section updated successfully.");
     } catch (error) {
-      console.error("Error updating home section:", error)
-      toast.error("Failed to update home section. Please try again.")
+      console.error("Error updating home section:", error);
+      toast.error("Failed to update home section. Please try again.");
     }
   }
 
@@ -541,21 +582,23 @@ export default function HomeSectionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="itemCount" className="text-right">
-                Item Count
-              </Label>
-              <Input
-                id="itemCount"
-                name="itemCount"
-                type="number"
-                value={formData.itemCount}
-                onChange={handleInputChange}
-                className="col-span-3"
-                min={1}
-                max={50}
-              />
-            </div>
+            {formData.type !== SectionType.BANNER && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="itemCount" className="text-right">
+                  Item Count
+                </Label>
+                <Input
+                  id="itemCount"
+                  name="itemCount"
+                  type="number"
+                  value={formData.itemCount}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  min={0}
+                  max={50}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="filterType" className="text-right">
                 Filter Type
@@ -636,21 +679,23 @@ export default function HomeSectionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-itemCount" className="text-right">
-                Item Count
-              </Label>
-              <Input
-                id="edit-itemCount"
-                name="itemCount"
-                type="number"
-                value={formData.itemCount}
-                onChange={handleInputChange}
-                className="col-span-3"
-                min={1}
-                max={50}
-              />
-            </div>
+            {formData.type !== SectionType.BANNER && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-itemCount" className="text-right">
+                  Item Count
+                </Label>
+                <Input
+                  id="edit-itemCount"
+                  name="itemCount"
+                  type="number"
+                  value={formData.itemCount}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  min={0}
+                  max={50}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-filterType" className="text-right">
                 Filter Type

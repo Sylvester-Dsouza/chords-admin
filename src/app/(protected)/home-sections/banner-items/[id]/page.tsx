@@ -49,113 +49,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import homeSectionService, { HomeSection, SectionType } from "@/services/home-section.service"
+import bannerItemService, {
+  BannerItem,
+  CreateBannerItemDto,
+  UpdateBannerItemDto,
+  LinkType,
+  ReorderBannerItemsDto
+} from "@/services/banner-item.service"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { STORAGE_FOLDERS, uploadImage, deleteImage } from "@/lib/image-upload"
-
-// Define banner item interfaces
-export enum LinkType {
-  NONE = 'NONE',
-  SONG = 'SONG',
-  ARTIST = 'ARTIST',
-  COLLECTION = 'COLLECTION',
-  EXTERNAL = 'EXTERNAL'
-}
-
-export interface BannerItem {
-  id: string;
-  homeSectionId: string;
-  title: string;
-  description?: string;
-  imageUrl: string;
-  linkType?: string;
-  linkId?: string;
-  externalUrl?: string;
-  order: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateBannerItemDto {
-  title: string;
-  description?: string;
-  imageUrl: string;
-  linkType?: string;
-  linkId?: string;
-  externalUrl?: string;
-  order?: number;
-  isActive?: boolean;
-}
-
-export interface UpdateBannerItemDto {
-  title?: string;
-  description?: string;
-  imageUrl?: string;
-  linkType?: string;
-  linkId?: string;
-  externalUrl?: string;
-  order?: number;
-  isActive?: boolean;
-}
-
-// Mock banner item service (replace with actual service)
-const bannerItemService = {
-  getBannerItemsBySection: async (sectionId: string): Promise<BannerItem[]> => {
-    // Mock implementation
-    return [];
-  },
-  createBannerItem: async (sectionId: string, data: CreateBannerItemDto): Promise<BannerItem> => {
-    // Mock implementation
-    return {
-      id: 'new-id',
-      homeSectionId: sectionId,
-      title: data.title,
-      description: data.description,
-      imageUrl: data.imageUrl,
-      linkType: data.linkType,
-      linkId: data.linkId,
-      externalUrl: data.externalUrl,
-      order: data.order || 0,
-      isActive: data.isActive || true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  },
-  updateBannerItem: async (id: string, data: UpdateBannerItemDto): Promise<BannerItem> => {
-    // Mock implementation
-    return {
-      id,
-      homeSectionId: 'section-id',
-      title: data.title || '',
-      description: data.description,
-      imageUrl: data.imageUrl || '',
-      linkType: data.linkType,
-      linkId: data.linkId,
-      externalUrl: data.externalUrl,
-      order: data.order || 0,
-      isActive: data.isActive || true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  },
-  deleteBannerItem: async (id: string): Promise<BannerItem> => {
-    // Mock implementation
-    return {
-      id,
-      homeSectionId: 'section-id',
-      title: '',
-      imageUrl: '',
-      order: 0,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  },
-  reorderBannerItems: async (sectionId: string, data: { bannerItemIds: string[] }): Promise<BannerItem[]> => {
-    // Mock implementation
-    return [];
-  },
-};
 
 export default function BannerItemsPage() {
   const params = useParams()
@@ -249,9 +151,12 @@ export default function BannerItemsPage() {
 
   // Handle link type selection
   const handleLinkTypeChange = (value: string) => {
+    // Normalize the value to match the API's expected format
+    const normalizedValue = value.toLowerCase() as LinkType
+
     setFormData(prev => ({
       ...prev,
-      linkType: value as LinkType,
+      linkType: normalizedValue,
       // Reset link-related fields when changing link type
       linkId: undefined,
       externalUrl: undefined
@@ -263,7 +168,11 @@ export default function BannerItemsPage() {
     setFormData({
       title: '',
       imageUrl: '',
-      linkType: LinkType.NONE,
+      linkType: LinkType.NONE, // This is now 'none' with our updated enum
+      description: '',
+      linkId: undefined, // Use undefined instead of empty string for optional UUID fields
+      externalUrl: '',
+      isActive: true
     })
     setSelectedFile(null)
     setPreviewUrl(null)
@@ -279,12 +188,23 @@ export default function BannerItemsPage() {
   // Open edit dialog
   const openEditDialog = (item: BannerItem) => {
     setCurrentBannerItem(item)
+
+    // Normalize the linkType to match our enum
+    const normalizedLinkType = item.linkType
+      ? (item.linkType.toLowerCase() as LinkType)
+      : LinkType.NONE
+
     setFormData({
       title: item.title,
       description: item.description || undefined,
       imageUrl: item.imageUrl,
-      linkType: item.linkType as LinkType || LinkType.NONE,
-      linkId: item.linkId || undefined,
+      linkType: normalizedLinkType,
+      // Only set linkId if it's needed for the current linkType
+      linkId: (normalizedLinkType === LinkType.SONG ||
+              normalizedLinkType === LinkType.ARTIST ||
+              normalizedLinkType === LinkType.COLLECTION) && item.linkId
+              ? item.linkId
+              : undefined,
       externalUrl: item.externalUrl || undefined,
       isActive: item.isActive
     })
@@ -321,11 +241,22 @@ export default function BannerItemsPage() {
         imageUrl = uploadedUrl
       }
 
-      // Create banner item
-      const newItem = await bannerItemService.createBannerItem(sectionId, {
+      // Prepare data with normalized linkType and proper linkId
+      const preparedData = {
         ...formData,
-        imageUrl
-      })
+        imageUrl,
+        // Convert linkType to lowercase to match API enum values
+        linkType: formData.linkType ? formData.linkType.toLowerCase() : 'none',
+        // Only include linkId if it's a valid UUID and required for the linkType
+        linkId: (formData.linkType === LinkType.SONG ||
+                formData.linkType === LinkType.ARTIST ||
+                formData.linkType === LinkType.COLLECTION) && formData.linkId
+                ? formData.linkId
+                : undefined
+      }
+
+      // Create banner item
+      const newItem = await bannerItemService.createBannerItem(sectionId, preparedData)
 
       // Update banner items list
       setBannerItems(prev => [...prev, newItem])
@@ -352,11 +283,22 @@ export default function BannerItemsPage() {
         imageUrl = uploadedUrl
       }
 
-      // Update banner item
-      const updatedItem = await bannerItemService.updateBannerItem(currentBannerItem.id, {
+      // Prepare data with normalized linkType and proper linkId
+      const preparedData = {
         ...formData,
-        imageUrl
-      })
+        imageUrl,
+        // Convert linkType to lowercase to match API enum values
+        linkType: formData.linkType ? formData.linkType.toLowerCase() : 'none',
+        // Only include linkId if it's a valid UUID and required for the linkType
+        linkId: (formData.linkType === LinkType.SONG ||
+                formData.linkType === LinkType.ARTIST ||
+                formData.linkType === LinkType.COLLECTION) && formData.linkId
+                ? formData.linkId
+                : undefined
+      }
+
+      // Update banner item
+      const updatedItem = await bannerItemService.updateBannerItem(currentBannerItem.id, preparedData)
 
       // Update banner items list
       setBannerItems(prev =>
@@ -498,13 +440,13 @@ export default function BannerItemsPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => router.push('/home-sections')}>
+                <IconArrowLeft className="mr-2 h-4 w-4" />
+                Back to Sections
+              </Button>
               <Button onClick={openAddDialog}>
                 <IconPlus className="mr-2 h-4 w-4" />
                 Add Banner Item
-              </Button>
-              <Button variant="outline" onClick={() => router.push('/home-sections')}>
-                <IconArrowLeft className="mr-2 h-4 w-4" />
-                Back
               </Button>
             </div>
           </div>
@@ -632,7 +574,7 @@ export default function BannerItemsPage() {
 
       {/* Add Banner Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Banner Item</DialogTitle>
             <DialogDescription>
@@ -643,13 +585,13 @@ export default function BannerItemsPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Title (Optional)</Label>
                 <Input
                   id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="Enter banner title"
+                  placeholder="Enter banner title (optional)"
                 />
               </div>
 
@@ -673,6 +615,7 @@ export default function BannerItemsPage() {
                     onImageSelected={handleImageSelected}
                     onImageRemoved={handleImageRemoved}
                     defaultImage={formData.imageUrl}
+                    className="w-full"
                   />
                   <p className="text-sm text-muted-foreground mt-2">
                     Upload a rectangular image (16:9 aspect ratio) for best results
@@ -681,9 +624,9 @@ export default function BannerItemsPage() {
               </div>
 
               <div>
-                <Label htmlFor="linkType">Link Type</Label>
+                <Label htmlFor="linkType">Link Type (Optional)</Label>
                 <Select
-                  value={formData.linkType}
+                  value={formData.linkType || LinkType.NONE}
                   onValueChange={handleLinkTypeChange}
                 >
                   <SelectTrigger>
@@ -729,11 +672,19 @@ export default function BannerItemsPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddDialogOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
-            <Button onClick={createBannerItem} disabled={isUploading}>
+            <Button
+              onClick={createBannerItem}
+              disabled={isUploading}
+              className="w-full sm:w-auto"
+            >
               {isUploading ? (
                 <>
                   <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -749,7 +700,7 @@ export default function BannerItemsPage() {
 
       {/* Edit Banner Item Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Banner Item</DialogTitle>
             <DialogDescription>
@@ -760,13 +711,13 @@ export default function BannerItemsPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="edit-title">Title</Label>
+                <Label htmlFor="edit-title">Title (Optional)</Label>
                 <Input
                   id="edit-title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="Enter banner title"
+                  placeholder="Enter banner title (optional)"
                 />
               </div>
 
@@ -790,6 +741,7 @@ export default function BannerItemsPage() {
                     onImageSelected={handleImageSelected}
                     onImageRemoved={handleImageRemoved}
                     defaultImage={formData.imageUrl}
+                    className="w-full"
                   />
                   <p className="text-sm text-muted-foreground mt-2">
                     Upload a rectangular image (16:9 aspect ratio) for best results
@@ -798,9 +750,9 @@ export default function BannerItemsPage() {
               </div>
 
               <div>
-                <Label htmlFor="edit-linkType">Link Type</Label>
+                <Label htmlFor="edit-linkType">Link Type (Optional)</Label>
                 <Select
-                  value={formData.linkType}
+                  value={formData.linkType || LinkType.NONE}
                   onValueChange={handleLinkTypeChange}
                 >
                   <SelectTrigger>
@@ -855,11 +807,19 @@ export default function BannerItemsPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
-            <Button onClick={updateBannerItem} disabled={isUploading}>
+            <Button
+              onClick={updateBannerItem}
+              disabled={isUploading}
+              className="w-full sm:w-auto"
+            >
               {isUploading ? (
                 <>
                   <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />

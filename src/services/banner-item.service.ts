@@ -1,11 +1,11 @@
 import apiClient from './api-client';
 
 export enum LinkType {
-  NONE = 'NONE',
-  SONG = 'SONG',
-  ARTIST = 'ARTIST',
-  COLLECTION = 'COLLECTION',
-  EXTERNAL = 'EXTERNAL'
+  NONE = 'none',
+  SONG = 'song',
+  ARTIST = 'artist',
+  COLLECTION = 'collection',
+  EXTERNAL = 'external'
 }
 
 export interface BannerItem {
