@@ -539,3 +539,4 @@ export default function ManageArtistSectionPage() {
       </SidebarInset>
     </SidebarProvider>
   )
+}
