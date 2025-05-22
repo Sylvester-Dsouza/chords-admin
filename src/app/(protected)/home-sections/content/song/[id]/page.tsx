@@ -144,8 +144,8 @@ export default function ManageSongSectionPage() {
         // Load section details
         const sectionData = await homeSectionService.getSection(sectionId)
 
-        // Verify this is a song section
-        if (sectionData.type !== SectionType.SONGS) {
+        // Verify this is a song section or song list section
+        if (sectionData.type !== SectionType.SONGS && sectionData.type !== SectionType.SONG_LIST) {
           toast.error("This section is not a song section")
           router.push('/home-sections')
           return
@@ -397,7 +397,9 @@ export default function ManageSongSectionPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">{section.title}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Songs</Badge>
+                <Badge variant="outline" className={section.type === SectionType.SONG_LIST ? "bg-teal-50 text-teal-700 hover:bg-teal-50" : "bg-green-50 text-green-700 hover:bg-green-50"}>
+                  {section.type === SectionType.SONG_LIST ? "Song List" : "Songs"}
+                </Badge>
                 <span className="text-muted-foreground">
                   {songs.length} songs • {section.filterType ? `Filter: ${section.filterType}` : 'No filter'}
                 </span>

@@ -168,6 +168,7 @@ function SortableRow({
               // Redirect to the appropriate content management page based on section type
               switch (section.type) {
                 case SectionType.SONGS:
+                case SectionType.SONG_LIST:
                   router.push(`/home-sections/content/song/${section.id}`);
                   break;
                 case SectionType.ARTISTS:
@@ -255,8 +256,8 @@ export default function HomeSectionsPage() {
 
   // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
-    if (name === "type" && value === SectionType.BANNER) {
-      // For banner sections, set itemCount to 0 as it's not used
+    if (name === "type" && (value === SectionType.BANNER || value === SectionType.SONG_LIST)) {
+      // For banner sections and song list sections, set itemCount to 0 as it's handled differently
       setFormData({
         ...formData,
         [name]: value,
@@ -284,7 +285,7 @@ export default function HomeSectionsPage() {
       // Ensure itemCount is a valid integer
       const dataToSubmit = {
         ...formData,
-        itemCount: formData.type === SectionType.BANNER ? 0 :
+        itemCount: (formData.type === SectionType.BANNER || formData.type === SectionType.SONG_LIST) ? 0 :
                   (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
       };
 
@@ -316,14 +317,47 @@ export default function HomeSectionsPage() {
       // Ensure itemCount is a valid integer
       const dataToSubmit = {
         ...formData,
-        itemCount: formData.type === SectionType.BANNER ? 0 :
+        itemCount: (formData.type === SectionType.BANNER || formData.type === SectionType.SONG_LIST) ? 0 :
                   (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
       };
 
       console.log("Updating home section data:", dataToSubmit);
+      console.log("Current section before update:", currentSection);
 
-      const updatedSection = await homeSectionService.updateSection(currentSection.id, dataToSubmit);
+      // Important: Only send the fields that are actually changing
+      // This prevents overwriting itemIds and other fields that aren't being edited
+      const fieldsToUpdate: UpdateHomeSectionDto = {};
+
+      // Only include fields that have changed
+      if (dataToSubmit.title !== currentSection?.title) fieldsToUpdate.title = dataToSubmit.title;
+      if (dataToSubmit.type !== currentSection?.type) fieldsToUpdate.type = dataToSubmit.type;
+      if (dataToSubmit.isActive !== currentSection?.isActive) fieldsToUpdate.isActive = dataToSubmit.isActive;
+      if (dataToSubmit.itemCount !== currentSection?.itemCount) fieldsToUpdate.itemCount = dataToSubmit.itemCount;
+      if (dataToSubmit.filterType !== currentSection?.filterType) fieldsToUpdate.filterType = dataToSubmit.filterType;
+
+      console.log("Fields being updated:", fieldsToUpdate);
+      console.log("Current section itemIds:", currentSection?.itemIds);
+
+      const updatedSection = await homeSectionService.updateSection(currentSection.id, fieldsToUpdate);
+      console.log("Received updated section from API:", updatedSection);
+
+      // Preserve itemIds from the original section if they weren't explicitly changed
+      // This ensures we don't lose manually added items
+      if (!fieldsToUpdate.itemIds && currentSection?.itemIds && (!updatedSection.itemIds || updatedSection.itemIds.length === 0)) {
+        console.log("Preserving original itemIds:", currentSection.itemIds);
+        updatedSection.itemIds = currentSection.itemIds;
+      }
+
+      // Update the section in the state
       setSections(sections.map(section => section.id === updatedSection.id ? updatedSection : section));
+
+      // Log the updated sections state
+      console.log("Updated sections state:", sections.map(s => ({
+        id: s.id,
+        title: s.title,
+        itemIds: s.itemIds
+      })));
+
       setIsEditDialogOpen(false);
       toast.success("Home section updated successfully.");
     } catch (error) {
@@ -350,14 +384,27 @@ export default function HomeSectionsPage() {
   // Handle toggle section active state
   const handleToggleActive = async (section: HomeSection) => {
     try {
+      console.log(`Toggling active state for section ${section.id}. Current itemIds:`, section.itemIds);
+
+      // Only update the isActive field
       const updatedSection = await homeSectionService.updateSection(section.id, {
         isActive: !section.isActive,
-      })
-      setSections(sections.map(s => s.id === updatedSection.id ? updatedSection : s))
-      toast.success(`Section ${updatedSection.isActive ? 'activated' : 'deactivated'} successfully.`)
+      });
+
+      console.log(`Received updated section from API:`, updatedSection);
+
+      // Preserve the original itemIds if they're missing in the response
+      if (section.itemIds && section.itemIds.length > 0 && (!updatedSection.itemIds || updatedSection.itemIds.length === 0)) {
+        console.log(`Preserving original itemIds for section ${section.id}:`, section.itemIds);
+        updatedSection.itemIds = section.itemIds;
+      }
+
+      // Update the section in the state
+      setSections(sections.map(s => s.id === updatedSection.id ? updatedSection : s));
+      toast.success(`Section ${updatedSection.isActive ? 'activated' : 'deactivated'} successfully.`);
     } catch (error) {
-      console.error("Error toggling section active state:", error)
-      toast.error("Failed to update section. Please try again.")
+      console.error("Error toggling section active state:", error);
+      toast.error("Failed to update section. Please try again.");
     }
   }
 
@@ -376,21 +423,53 @@ export default function HomeSectionsPage() {
       return
     }
 
+    console.log("Reordering sections. Moving section from index", oldIndex, "to", newIndex);
+
+    // Create a copy of the sections array with the new order
     const newSections = arrayMove(sections, oldIndex, newIndex)
 
     // Optimistically update UI
     setSections(newSections)
 
     try {
+      console.log("Sections before reordering:", sections.map(s => ({
+        id: s.id,
+        title: s.title,
+        itemIds: s.itemIds?.length
+      })));
+
       // Update each section's order individually
-      const updatePromises = newSections.map((section, index) =>
-        homeSectionService.updateSection(section.id, {
+      const updatePromises = newSections.map((section, index) => {
+        console.log(`Updating order for section ${section.id} to ${index + 1}. Current itemIds:`, section.itemIds);
+
+        return homeSectionService.updateSection(section.id, {
           order: index + 1
-        })
-      );
+        }).then(updatedSection => {
+          console.log(`Received updated section ${section.id} from API:`, updatedSection);
+
+          // Preserve itemIds if they're missing in the response
+          if (section.itemIds?.length > 0 && (!updatedSection.itemIds || updatedSection.itemIds.length === 0)) {
+            console.log(`Preserving itemIds for section ${section.id}:`, section.itemIds);
+            return {
+              ...updatedSection,
+              itemIds: section.itemIds
+            };
+          }
+          return updatedSection;
+        });
+      });
 
       // Wait for all updates to complete
-      await Promise.all(updatePromises);
+      const updatedSections = await Promise.all(updatePromises);
+
+      console.log("All sections after reordering:", updatedSections.map(s => ({
+        id: s.id,
+        title: s.title,
+        itemIds: s.itemIds?.length
+      })));
+
+      // Update the sections state with the preserved itemIds
+      setSections(updatedSections);
 
       toast.success("Sections reordered successfully")
     } catch (error) {
@@ -440,6 +519,8 @@ export default function HomeSectionsPage() {
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Collections</Badge>
       case SectionType.SONGS:
         return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Songs</Badge>
+      case SectionType.SONG_LIST:
+        return <Badge variant="outline" className="bg-teal-50 text-teal-700 hover:bg-teal-50">Song List</Badge>
       case SectionType.ARTISTS:
         return <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">Artists</Badge>
       case SectionType.BANNER:
@@ -577,12 +658,13 @@ export default function HomeSectionsPage() {
                 <SelectContent>
                   <SelectItem value={SectionType.COLLECTIONS}>Collections</SelectItem>
                   <SelectItem value={SectionType.SONGS}>Songs</SelectItem>
+                  <SelectItem value={SectionType.SONG_LIST}>Song List</SelectItem>
                   <SelectItem value={SectionType.ARTISTS}>Artists</SelectItem>
                   <SelectItem value={SectionType.BANNER}>Banner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {formData.type !== SectionType.BANNER && (
+            {formData.type !== SectionType.BANNER && formData.type !== SectionType.SONG_LIST && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="itemCount" className="text-right">
                   Item Count
@@ -674,12 +756,13 @@ export default function HomeSectionsPage() {
                 <SelectContent>
                   <SelectItem value={SectionType.COLLECTIONS}>Collections</SelectItem>
                   <SelectItem value={SectionType.SONGS}>Songs</SelectItem>
+                  <SelectItem value={SectionType.SONG_LIST}>Song List</SelectItem>
                   <SelectItem value={SectionType.ARTISTS}>Artists</SelectItem>
                   <SelectItem value={SectionType.BANNER}>Banner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {formData.type !== SectionType.BANNER && (
+            {formData.type !== SectionType.BANNER && formData.type !== SectionType.SONG_LIST && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-itemCount" className="text-right">
                   Item Count

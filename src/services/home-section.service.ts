@@ -4,7 +4,8 @@ export enum SectionType {
   COLLECTIONS = 'COLLECTIONS',
   SONGS = 'SONGS',
   ARTISTS = 'ARTISTS',
-  BANNER = 'BANNER'
+  BANNER = 'BANNER',
+  SONG_LIST = 'SONG_LIST'
 }
 
 export interface BannerItem {
@@ -105,7 +106,9 @@ class HomeSectionService {
   }
 
   async updateSection(id: string, data: UpdateHomeSectionDto): Promise<HomeSection> {
+    console.log(`Updating section ${id} with data:`, data);
     const response = await apiClient.patch(`/home-sections/${id}`, data);
+    console.log(`API response for section ${id} update:`, response.data);
     return response.data;
   }
 
