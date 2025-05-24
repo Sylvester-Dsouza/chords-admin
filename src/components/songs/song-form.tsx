@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ArtistCombobox } from "@/components/artists/artist-combobox"
+import { KeyCombobox } from "@/components/songs/key-combobox"
 // Removed unused Tabs imports
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -474,28 +475,11 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Key</label>
-                      <Select
-                        onValueChange={(value) => setFormState({...formState, key: value})}
+                      <KeyCombobox
                         value={formState.key}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select key" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A">A</SelectItem>
-                          <SelectItem value="A#">A#</SelectItem>
-                          <SelectItem value="B">B</SelectItem>
-                          <SelectItem value="C">C</SelectItem>
-                          <SelectItem value="C#">C#</SelectItem>
-                          <SelectItem value="D">D</SelectItem>
-                          <SelectItem value="D#">D#</SelectItem>
-                          <SelectItem value="E">E</SelectItem>
-                          <SelectItem value="F">F</SelectItem>
-                          <SelectItem value="F#">F#</SelectItem>
-                          <SelectItem value="G">G</SelectItem>
-                          <SelectItem value="G#">G#</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        onChange={(value) => setFormState({...formState, key: value})}
+                        placeholder="Select key..."
+                      />
                     </div>
 
                     <div className="space-y-2">

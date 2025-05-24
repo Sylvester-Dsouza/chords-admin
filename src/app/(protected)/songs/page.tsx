@@ -53,6 +53,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 
 import songService, { Song } from "@/services/song.service"
+import { MUSICAL_KEYS } from "@/constants/musical-keys"
 
 export default function SongsPage() {
   const router = useRouter()
@@ -62,6 +63,8 @@ export default function SongsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [selectedSongs, setSelectedSongs] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [difficultyFilter, setDifficultyFilter] = React.useState("all")
+  const [keyFilter, setKeyFilter] = React.useState("all")
 
   // Add debugging
   React.useEffect(() => {
@@ -114,12 +117,20 @@ export default function SongsPage() {
     fetchSongs()
   }, [])
 
-  // Filter songs based on search query
-  const filteredSongs = songs.filter(
-    (song) =>
+  // Filter songs based on search query, difficulty, and key
+  const filteredSongs = songs.filter((song) => {
+    const matchesSearch =
       song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (song.artist?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || '')
-  )
+
+    const matchesDifficulty =
+      difficultyFilter === "all" || song.difficulty === difficultyFilter
+
+    const matchesKey =
+      keyFilter === "all" || song.key === keyFilter
+
+    return matchesSearch && matchesDifficulty && matchesKey
+  })
 
   // Toggle song selection
   const toggleSongSelection = (songId: string) => {
@@ -405,7 +416,7 @@ export default function SongsPage() {
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select defaultValue="all">
+              <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue placeholder="Filter by difficulty" />
                 </SelectTrigger>
@@ -416,19 +427,17 @@ export default function SongsPage() {
                   <SelectItem value="hard">Hard</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[120px]">
+              <Select value={keyFilter} onValueChange={setKeyFilter}>
+                <SelectTrigger className="h-9 w-[140px]">
                   <SelectValue placeholder="Filter by key" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Keys</SelectItem>
-                  <SelectItem value="A">A</SelectItem>
-                  <SelectItem value="B">B</SelectItem>
-                  <SelectItem value="C">C</SelectItem>
-                  <SelectItem value="D">D</SelectItem>
-                  <SelectItem value="E">E</SelectItem>
-                  <SelectItem value="F">F</SelectItem>
-                  <SelectItem value="G">G</SelectItem>
+                  {MUSICAL_KEYS.map((key) => (
+                    <SelectItem key={key.value} value={key.value}>
+                      {key.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <DropdownMenu>
