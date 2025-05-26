@@ -448,7 +448,7 @@ export default function HomeSectionsPage() {
           console.log(`Received updated section ${section.id} from API:`, updatedSection);
 
           // Preserve itemIds if they're missing in the response
-          if (section.itemIds?.length > 0 && (!updatedSection.itemIds || updatedSection.itemIds.length === 0)) {
+          if (section.itemIds && section.itemIds.length > 0 && (!updatedSection.itemIds || updatedSection.itemIds.length === 0)) {
             console.log(`Preserving itemIds for section ${section.id}:`, section.itemIds);
             return {
               ...updatedSection,
@@ -465,7 +465,7 @@ export default function HomeSectionsPage() {
       console.log("All sections after reordering:", updatedSections.map(s => ({
         id: s.id,
         title: s.title,
-        itemIds: s.itemIds?.length
+        itemIds: s.itemIds ? s.itemIds.length : 0
       })));
 
       // Update the sections state with the preserved itemIds

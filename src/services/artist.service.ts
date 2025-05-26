@@ -21,6 +21,7 @@ export interface Artist {
   songCount?: number;
   totalViews?: number;
   isFeatured?: boolean;
+  isActive?: boolean;
 }
 
 export interface CreateArtistDto {
@@ -30,6 +31,7 @@ export interface CreateArtistDto {
   website?: string;
   socialLinks?: SocialLinks;
   isFeatured?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateArtistDto {
@@ -39,6 +41,7 @@ export interface UpdateArtistDto {
   website?: string;
   socialLinks?: SocialLinks;
   isFeatured?: boolean;
+  isActive?: boolean;
 }
 
 // Artist service

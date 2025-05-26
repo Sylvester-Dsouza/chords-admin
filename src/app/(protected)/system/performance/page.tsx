@@ -85,7 +85,7 @@ const slowQueries = [
     hasIndex: false
   },
   { 
-    query: "SELECT * FROM playlists WHERE user_id = ? AND is_public = true",
+    query: "SELECT * FROM setlists WHERE user_id = ? AND is_public = true",
     avgTime: 180, // ms
     calls: 78,
     lastExecuted: "5 minutes ago",

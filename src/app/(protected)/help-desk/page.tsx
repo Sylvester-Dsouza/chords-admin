@@ -53,8 +53,8 @@ import { Separator } from "@/components/ui/separator"
 const customerQueries = [
   {
     id: "1",
-    subject: "Can't access my saved playlists",
-    message: "I recently upgraded to premium but I can't see my saved playlists anymore. Can you help me recover them?",
+    subject: "Can't access my saved setlists",
+    message: "I recently upgraded to premium but I can't see my saved setlists anymore. Can you help me recover them?",
     customer: "Alex Thompson",
     email: "alex@example.com",
     date: new Date("2023-04-10T14:30:00"),

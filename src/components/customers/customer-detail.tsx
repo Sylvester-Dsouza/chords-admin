@@ -19,7 +19,6 @@ import {
   IconAd,
   IconCheck,
   IconAlertCircle,
-  IconPlaylist,
   IconHeart,
   IconBell,
   IconMessageQuestion,
@@ -45,7 +44,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Customer } from "@/services/customer.service"
 import adsService from "@/services/ads.service"
 import subscriptionService from "@/services/subscription.service"
-import playlistService, { Playlist } from "@/services/playlist.service"
+import setlistService, { Setlist } from "@/services/setlist.service"
 import likedSongService from "@/services/liked-song.service"
 import songRequestService from "@/services/song-request.service"
 import notificationHistoryService from "@/services/notification-history.service"
@@ -89,14 +88,14 @@ export default function CustomerDetail({ customer, title, isLoading = false, err
   const [isRestoringAds, setIsRestoringAds] = React.useState(false)
 
   // State for customer data
-  const [playlists, setPlaylists] = React.useState<Playlist[]>([])
+  const [setlists, setSetlists] = React.useState<Setlist[]>([])
   const [likedSongs, setLikedSongs] = React.useState<any[]>([])
   const [songRequests, setSongRequests] = React.useState<any[]>([])
   const [notificationHistory, setNotificationHistory] = React.useState<any[]>([])
   const [activeSubscription, setActiveSubscription] = React.useState<any>(null)
 
   // Loading states
-  const [loadingPlaylists, setLoadingPlaylists] = React.useState(false)
+  const [loadingSetlists, setLoadingSetlists] = React.useState(false)
   const [loadingLikedSongs, setLoadingLikedSongs] = React.useState(false)
   const [loadingSongRequests, setLoadingSongRequests] = React.useState(false)
   const [loadingNotifications, setLoadingNotifications] = React.useState(false)
@@ -135,19 +134,19 @@ export default function CustomerDetail({ customer, title, isLoading = false, err
     checkAdsStatus();
   }, [customer]);
 
-  // Fetch customer playlists
-  const fetchPlaylists = React.useCallback(async () => {
+  // Fetch customer setlists
+  const fetchSetlists = React.useCallback(async () => {
     if (!customer) return;
 
     try {
-      setLoadingPlaylists(true);
-      const data = await playlistService.getCustomerPlaylists(customer.id);
-      setPlaylists(data);
+      setLoadingSetlists(true);
+      const data = await setlistService.getCustomerSetlists(customer.id);
+      setSetlists(data);
     } catch (err) {
-      console.error('Failed to fetch playlists:', err);
+      console.error('Failed to fetch setlists:', err);
       // Don't show error toast, just log it
     } finally {
-      setLoadingPlaylists(false);
+      setLoadingSetlists(false);
     }
   }, [customer]);
 
@@ -250,12 +249,12 @@ export default function CustomerDetail({ customer, title, isLoading = false, err
   // Fetch all customer data when the component mounts
   React.useEffect(() => {
     if (customer) {
-      fetchPlaylists();
+      fetchSetlists();
       fetchLikedSongs();
       fetchSongRequests();
       fetchNotificationHistory();
     }
-  }, [customer, fetchPlaylists, fetchLikedSongs, fetchSongRequests, fetchNotificationHistory]);
+  }, [customer, fetchSetlists, fetchLikedSongs, fetchSongRequests, fetchNotificationHistory]);
 
   // Format time for display
   const formatTime = (date: Date | string) => {
@@ -545,11 +544,11 @@ export default function CustomerDetail({ customer, title, isLoading = false, err
           </div>
 
           {/* Tabbed interface for customer data */}
-          <Tabs defaultValue="playlists" className="w-full">
+          <Tabs defaultValue="setlists" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="playlists">
-                <IconPlaylist className="mr-2 h-4 w-4" />
-                Playlists
+              <TabsTrigger value="setlists">
+                <IconMusic className="mr-2 h-4 w-4" />
+                Setlists
               </TabsTrigger>
               <TabsTrigger value="liked-songs">
                 <IconHeart className="mr-2 h-4 w-4" />
@@ -569,42 +568,55 @@ export default function CustomerDetail({ customer, title, isLoading = false, err
               </TabsTrigger>
             </TabsList>
 
-            {/* Playlists Tab */}
-            <TabsContent value="playlists" className="mt-4">
+            {/* Setlists Tab */}
+            <TabsContent value="setlists" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Customer Playlists</CardTitle>
+                  <CardTitle>Customer Setlists</CardTitle>
                   <CardDescription>
-                    Playlists created by this customer
+                    Setlists created by this customer
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {loadingPlaylists ? (
+                  {loadingSetlists ? (
                     <div className="flex justify-center items-center p-8">
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                      <span className="ml-3">Loading playlists...</span>
+                      <span className="ml-3">Loading setlists...</span>
                     </div>
-                  ) : playlists.length === 0 ? (
+                  ) : setlists.length === 0 ? (
                     <div className="text-center p-8 text-muted-foreground">
-                      This customer hasn't created any playlists yet.
+                      This customer hasn't created any setlists yet.
                     </div>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Songs</TableHead>
+                          <TableHead>Setlist Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Songs Count</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead>Last Updated</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {playlists.map((playlist) => (
-                          <TableRow key={playlist.id}>
-                            <TableCell className="font-medium">{playlist.name}</TableCell>
-                            <TableCell>{playlist.songs?.length || 0}</TableCell>
-                            <TableCell>{formatDate(playlist.createdAt)}</TableCell>
-                            <TableCell>{formatDate(playlist.updatedAt)}</TableCell>
+                        {setlists.map((setlist) => (
+                          <TableRow key={setlist.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center">
+                                <IconMusic className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {setlist.name}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {setlist.description || "No description"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {setlist.songs?.length || 0} songs
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{formatDate(setlist.createdAt)}</TableCell>
+                            <TableCell>{formatDate(setlist.updatedAt)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

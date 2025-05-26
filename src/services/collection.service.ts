@@ -18,6 +18,7 @@ export interface Collection {
   createdAt: Date;
   updatedAt: Date;
   isPublic?: boolean;
+  isActive?: boolean;
   // Extended properties added in the UI
   songCount?: number;
   totalViews?: number;
@@ -29,6 +30,7 @@ export interface CreateCollectionDto {
   description?: string;
   imageUrl?: string;
   isPublic?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateCollectionDto {
@@ -36,6 +38,7 @@ export interface UpdateCollectionDto {
   description?: string;
   imageUrl?: string;
   isPublic?: boolean;
+  isActive?: boolean;
 }
 
 export interface AddSongToCollectionDto {

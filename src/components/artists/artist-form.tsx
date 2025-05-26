@@ -60,6 +60,7 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
     },
     imageUrl: initialData?.imageUrl || "",
     isFeatured: initialData?.isFeatured || false,
+    isActive: initialData?.isActive !== undefined ? initialData.isActive : true,
   })
 
   // State for tags
@@ -165,6 +166,7 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
         imageUrl: imageUrl || undefined,
         website: formState.website || undefined,
         isFeatured: formState.isFeatured,
+        isActive: formState.isActive,
         socialLinks: {
           facebook: formState.socialLinks.facebook || undefined,
           twitter: formState.socialLinks.twitter || undefined,
@@ -174,6 +176,8 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
       }
 
       console.log('Submitting artist data:', JSON.stringify(artistData, null, 2))
+      console.log('Form state isActive:', formState.isActive)
+      console.log('Artist data isActive:', artistData.isActive)
 
       let result: Artist
       if (mode === 'create') {
@@ -513,6 +517,35 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
                         This artist will be featured on the homepage
                       </p>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      onValueChange={(value) => setFormState({...formState, isActive: value === 'active'})}
+                      value={formState.isActive ? 'active' : 'inactive'}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            Active
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="inactive">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            Inactive
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Inactive artists are hidden from the app and only visible in the admin panel.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

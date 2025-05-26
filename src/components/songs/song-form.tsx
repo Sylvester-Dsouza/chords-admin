@@ -57,6 +57,7 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
     timeSignature: initialData?.timeSignature || "",
     difficulty: initialData?.difficulty || "",
     capo: initialData?.capo || 0, // Default to 0 (no capo)
+    status: initialData?.status || "ACTIVE", // Default to ACTIVE
     chordSheet: initialData?.chordSheet || "",
     imageUrl: initialData?.imageUrl || "",
     officialVideoUrl: initialData?.officialVideoUrl || "",
@@ -250,6 +251,7 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
         timeSignature: formState.timeSignature || undefined,
         difficulty: formState.difficulty || undefined,
         capo: formState.capo, // Add capo position
+        status: formState.status as 'DRAFT' | 'ACTIVE', // Add status
         chordSheet: formState.chordSheet,
         imageUrl: imageUrl || undefined,
         officialVideoUrl: formState.officialVideoUrl || undefined,
@@ -262,12 +264,15 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
       }
 
       console.log('Submitting song data:', JSON.stringify(songData, null, 2))
+      console.log('Form state status:', formState.status)
+      console.log('Song data status:', songData.status)
 
       let result: Song
       if (mode === 'create') {
         // Create new song
         result = await songService.createSong(songData as CreateSongDto)
         console.log('Song created successfully:', result)
+        console.log('Created song status:', result.status)
 
         // Now handle the tags separately
         if (selectedTags.length > 0) {
@@ -298,6 +303,7 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
         }
         result = await songService.updateSong(initialData.id, songData as UpdateSongDto)
         console.log('Song updated successfully:', result)
+        console.log('Updated song status:', result.status)
 
         // Now handle the tags separately
         try {
@@ -642,6 +648,35 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Select tags for categorizing the song. <a href="/tags/new" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">Create new tags</a>
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      onValueChange={(value) => setFormState({...formState, status: value as 'DRAFT' | 'ACTIVE'})}
+                      value={formState.status}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DRAFT">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                            Draft
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ACTIVE">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            Active
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Draft songs are only visible in the admin panel. Active songs are published and visible to users.
                     </p>
                   </div>
                 </CardContent>

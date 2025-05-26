@@ -56,6 +56,7 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
     description: initialData?.description || "",
     imageUrl: initialData?.imageUrl || "",
     isPublic: initialData?.isPublic !== false, // Default to true if not specified
+    isActive: initialData?.isActive !== undefined ? initialData.isActive : true, // Default to true if not specified
   })
 
   // State for the image file
@@ -204,6 +205,7 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
         description: formState.description || undefined,
         imageUrl: imageUrl || undefined,
         isPublic: formState.isPublic,
+        isActive: formState.isActive,
       }
 
       console.log('Submitting collection data:', JSON.stringify(collectionData, null, 2))
@@ -533,6 +535,35 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
                         Make this collection visible to all users
                       </p>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      onValueChange={(value) => setFormState({...formState, isActive: value === 'active'})}
+                      value={formState.isActive ? 'active' : 'inactive'}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            Active
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="inactive">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            Inactive
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Inactive collections are hidden from the app and only visible in the admin panel.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

@@ -65,6 +65,7 @@ export default function SongsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [difficultyFilter, setDifficultyFilter] = React.useState("all")
   const [keyFilter, setKeyFilter] = React.useState("all")
+  const [statusFilter, setStatusFilter] = React.useState("all")
 
   // Add debugging
   React.useEffect(() => {
@@ -82,6 +83,7 @@ export default function SongsPage() {
     album: true,
     key: true,
     difficulty: true,
+    status: true,
     views: true,
     likes: true,
     createdAt: true,
@@ -117,7 +119,7 @@ export default function SongsPage() {
     fetchSongs()
   }, [])
 
-  // Filter songs based on search query, difficulty, and key
+  // Filter songs based on search query, difficulty, key, and status
   const filteredSongs = songs.filter((song) => {
     const matchesSearch =
       song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -129,7 +131,10 @@ export default function SongsPage() {
     const matchesKey =
       keyFilter === "all" || song.key === keyFilter
 
-    return matchesSearch && matchesDifficulty && matchesKey
+    const matchesStatus =
+      statusFilter === "all" || song.status === statusFilter
+
+    return matchesSearch && matchesDifficulty && matchesKey && matchesStatus
   })
 
   // Toggle song selection
@@ -440,6 +445,26 @@ export default function SongsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9 w-[120px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="DRAFT">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                      Draft
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ACTIVE">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      Active
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9">
@@ -487,6 +512,14 @@ export default function SongsPage() {
                     }
                   >
                     Difficulty
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.status}
+                    onCheckedChange={(checked) =>
+                      setVisibleColumns({ ...visibleColumns, status: checked })
+                    }
+                  >
+                    Status
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={visibleColumns.views}
@@ -570,6 +603,7 @@ export default function SongsPage() {
                 {visibleColumns.album && <TableHead>Album</TableHead>}
                 {visibleColumns.key && <TableHead className="w-16">Key</TableHead>}
                 {visibleColumns.difficulty && <TableHead>Difficulty</TableHead>}
+                {visibleColumns.status && <TableHead>Status</TableHead>}
                 {visibleColumns.views && <TableHead className="text-right">Views</TableHead>}
                 {visibleColumns.likes && <TableHead className="text-right">Likes</TableHead>}
                 {visibleColumns.createdAt && <TableHead>Created</TableHead>}
@@ -628,6 +662,27 @@ export default function SongsPage() {
                           }
                         >
                           {song.difficulty || "-"}
+                        </Badge>
+                      </TableCell>
+                    )}
+                    {visibleColumns.status && (
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            song.status === "ACTIVE"
+                              ? "border-green-500 text-green-500"
+                              : "border-yellow-500 text-yellow-500"
+                          }
+                        >
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                song.status === "ACTIVE" ? "bg-green-500" : "bg-yellow-500"
+                              }`}
+                            />
+                            {song.status || "DRAFT"}
+                          </div>
                         </Badge>
                       </TableCell>
                     )}

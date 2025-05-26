@@ -63,11 +63,13 @@ export default function CollectionsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [selectedCollections, setSelectedCollections] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [statusFilter, setStatusFilter] = React.useState("all")
   const [visibleColumns, setVisibleColumns] = React.useState({
     name: true,
     songCount: true,
     totalViews: true,
     visibility: true,
+    isActive: true,
     createdAt: true,
   })
 
@@ -84,6 +86,8 @@ export default function CollectionsPage() {
           songCount: collection.songs?.length || 0,
           totalViews: Math.floor(Math.random() * 10000), // Placeholder
           visibility: collection.isPublic ? "public" as const : "private" as const, // Convert isPublic to visibility
+          // Keep the original isActive value from the API
+          isActive: typeof collection.isActive === 'boolean' ? collection.isActive : true,
           // Convert string dates to Date objects if needed
           createdAt: collection.createdAt instanceof Date ? collection.createdAt : new Date(collection.createdAt),
           updatedAt: collection.updatedAt instanceof Date ? collection.updatedAt : new Date(collection.updatedAt)
@@ -102,12 +106,19 @@ export default function CollectionsPage() {
     fetchCollections()
   }, [])
 
-  // Filter collections based on search query
-  const filteredCollections = collections.filter(
-    (collection) =>
+  // Filter collections based on search query and status
+  const filteredCollections = collections.filter((collection) => {
+    const matchesSearch =
       collection.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (collection.description && collection.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && collection.isActive) ||
+      (statusFilter === "inactive" && !collection.isActive)
+
+    return matchesSearch && matchesStatus
+  })
 
   // Delete collection function
   const deleteCollection = async (collectionId: string) => {
@@ -166,7 +177,7 @@ export default function CollectionsPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Collections</h1>
               <p className="text-muted-foreground">
-                Manage your song collections and playlists
+                Manage your song collections and setlists
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -385,6 +396,26 @@ export default function CollectionsPage() {
                       <SelectItem value="unlisted">Unlisted</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 w-[120px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          Active
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          Inactive
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-9">
@@ -424,6 +455,14 @@ export default function CollectionsPage() {
                         }
                       >
                         Visibility
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.isActive}
+                        onCheckedChange={(checked) =>
+                          setVisibleColumns({ ...visibleColumns, isActive: checked })
+                        }
+                      >
+                        Status
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={visibleColumns.createdAt}
@@ -482,6 +521,7 @@ export default function CollectionsPage() {
                     {visibleColumns.songCount && <TableHead className="text-right">Songs</TableHead>}
                     {visibleColumns.totalViews && <TableHead className="text-right">Views</TableHead>}
                     {visibleColumns.visibility && <TableHead>Visibility</TableHead>}
+                    {visibleColumns.isActive && <TableHead>Status</TableHead>}
                     {visibleColumns.createdAt && <TableHead>Created</TableHead>}
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -537,6 +577,27 @@ export default function CollectionsPage() {
                               }
                             >
                               {collection.visibility ? collection.visibility.charAt(0).toUpperCase() + collection.visibility.slice(1) : 'Private'}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.isActive && (
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                collection.isActive
+                                  ? "border-green-500 text-green-500"
+                                  : "border-red-500 text-red-500"
+                              }
+                            >
+                              <div className="flex items-center gap-1">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    collection.isActive ? "bg-green-500" : "bg-red-500"
+                                  }`}
+                                />
+                                {collection.isActive ? "Active" : "Inactive"}
+                              </div>
                             </Badge>
                           </TableCell>
                         )}

@@ -65,11 +65,13 @@ export default function ArtistsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [selectedArtists, setSelectedArtists] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [statusFilter, setStatusFilter] = React.useState("all")
   const [visibleColumns, setVisibleColumns] = React.useState({
     name: true,
     songCount: true,
     totalViews: true,
     isFeatured: true,
+    isActive: true,
     createdAt: true,
   })
 
@@ -94,6 +96,8 @@ export default function ArtistsPage() {
             totalViews: Math.floor(Math.random() * 50000), // Placeholder
             // Keep the original isFeatured value from the API
             isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+            // Keep the original isActive value from the API
+            isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
             // Convert string dates to Date objects if needed
             createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
             updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
@@ -113,12 +117,19 @@ export default function ArtistsPage() {
     fetchArtists()
   }, [])
 
-  // Filter artists based on search query
-  const filteredArtists = artists.filter(
-    (artist) =>
+  // Filter artists based on search query and status
+  const filteredArtists = artists.filter((artist) => {
+    const matchesSearch =
       artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (artist.bio && artist.bio.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && artist.isActive) ||
+      (statusFilter === "inactive" && !artist.isActive)
+
+    return matchesSearch && matchesStatus
+  })
 
   // Delete artist function
   const deleteArtist = async (artistId: string) => {
@@ -492,12 +503,24 @@ export default function ArtistsPage() {
                   </Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Select defaultValue="all">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="h-9 w-[150px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Artists</SelectItem>
+                      <SelectItem value="active">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          Active
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          Inactive
+                        </div>
+                      </SelectItem>
                       <SelectItem value="featured">Featured</SelectItem>
                       <SelectItem value="not-featured">Not Featured</SelectItem>
                     </SelectContent>
@@ -541,6 +564,14 @@ export default function ArtistsPage() {
                         }
                       >
                         Featured
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.isActive}
+                        onCheckedChange={(checked) =>
+                          setVisibleColumns({ ...visibleColumns, isActive: checked })
+                        }
+                      >
+                        Status
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={visibleColumns.createdAt}
@@ -607,6 +638,7 @@ export default function ArtistsPage() {
                     {visibleColumns.songCount && <TableHead className="text-right">Songs</TableHead>}
                     {visibleColumns.totalViews && <TableHead className="text-right">Views</TableHead>}
                     {visibleColumns.isFeatured && <TableHead>Featured</TableHead>}
+                    {visibleColumns.isActive && <TableHead>Status</TableHead>}
                     {visibleColumns.createdAt && <TableHead>Created</TableHead>}
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -660,6 +692,27 @@ export default function ArtistsPage() {
                               }
                             >
                               {artist.isFeatured === true ? "Featured" : "Not Featured"}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.isActive && (
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                artist.isActive
+                                  ? "border-green-500 text-green-500"
+                                  : "border-red-500 text-red-500"
+                              }
+                            >
+                              <div className="flex items-center gap-1">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    artist.isActive ? "bg-green-500" : "bg-red-500"
+                                  }`}
+                                />
+                                {artist.isActive ? "Active" : "Inactive"}
+                              </div>
                             </Badge>
                           </TableCell>
                         )}

@@ -1,5 +1,5 @@
 import apiClient from './api-client';
-import { Song } from './playlist.service';
+import { Song } from './setlist.service';
 
 // LikedSong service
 const likedSongService = {

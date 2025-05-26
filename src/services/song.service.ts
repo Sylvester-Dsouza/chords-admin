@@ -24,6 +24,7 @@ export interface Song {
   officialVideoUrl?: string | null; // URL to the official music video
   tutorialVideoUrl?: string | null; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
+  status?: 'DRAFT' | 'ACTIVE'; // Song status
   tags: string[];
   songTags?: {
     tagId: string;
@@ -53,6 +54,7 @@ export interface CreateSongDto {
   officialVideoUrl?: string; // URL to the official music video
   tutorialVideoUrl?: string; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
+  status?: 'DRAFT' | 'ACTIVE'; // Song status
   tags?: string[];
 }
 
@@ -69,6 +71,7 @@ export interface UpdateSongDto {
   officialVideoUrl?: string; // URL to the official music video
   tutorialVideoUrl?: string; // URL to a tutorial video showing how to play the song
   capo?: number; // Capo position
+  status?: 'DRAFT' | 'ACTIVE'; // Song status
   tags?: string[];
 }
 
