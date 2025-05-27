@@ -19,9 +19,13 @@ export interface Collection {
   updatedAt: Date;
   isPublic?: boolean;
   isActive?: boolean;
+  // Analytics properties from database
+  viewCount?: number;
+  uniqueViewers?: number;
+  lastViewed?: Date | null;
   // Extended properties added in the UI
   songCount?: number;
-  totalViews?: number;
+  totalViews?: number; // deprecated - use viewCount instead
   visibility?: 'public' | 'private' | 'unlisted';
 }
 

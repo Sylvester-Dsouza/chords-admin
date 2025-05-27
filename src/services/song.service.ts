@@ -36,7 +36,11 @@ export interface Song {
   }[];
   createdAt: Date;
   updatedAt: Date;
-  // UI-specific properties
+  // Analytics properties from database
+  viewCount?: number;
+  uniqueViewers?: number;
+  lastViewed?: Date | null;
+  // UI-specific properties (deprecated - use viewCount instead)
   views?: number;
   likes?: number;
 }

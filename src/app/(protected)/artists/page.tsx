@@ -93,7 +93,7 @@ export default function ArtistsPage() {
           return {
             ...artist,
             songCount: 0, // This would need to be fetched from the API
-            totalViews: Math.floor(Math.random() * 50000), // Placeholder
+            totalViews: artist.viewCount || 0, // Use real view count data
             // Keep the original isFeatured value from the API
             isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
             // Keep the original isActive value from the API
@@ -296,7 +296,7 @@ export default function ArtistsPage() {
                             return {
                               ...artist,
                               songCount: 0,
-                              totalViews: Math.floor(Math.random() * 50000),
+                              totalViews: artist.viewCount || 0, // Use real view count data
                               // Keep the original isFeatured value from the API
                               isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
                               createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),

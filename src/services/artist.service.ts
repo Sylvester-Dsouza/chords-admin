@@ -17,9 +17,13 @@ export interface Artist {
   socialLinks?: SocialLinks | null;
   createdAt: Date;
   updatedAt: Date;
+  // Analytics properties from database
+  viewCount?: number;
+  uniqueViewers?: number;
+  lastViewed?: Date | null;
   // Extended properties added in the UI
   songCount?: number;
-  totalViews?: number;
+  totalViews?: number; // deprecated - use viewCount instead
   isFeatured?: boolean;
   isActive?: boolean;
 }

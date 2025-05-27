@@ -96,11 +96,12 @@ export default function SongsPage() {
         setLoading(true)
         const data = await songService.getAllSongs()
 
-        // Add placeholder values for views and likes if they don't exist in the API
+        // Use real view count data from the API
         const songsWithStats = data.map(song => ({
           ...song,
-          views: song.views || Math.floor(Math.random() * 10000),
-          likes: song.likes || Math.floor(Math.random() * 500),
+          // Use viewCount from API, fallback to 0 if not available
+          views: song.viewCount || 0,
+          likes: song.likes || 0, // Keep likes as is for now
           // Convert string dates to Date objects if needed
           createdAt: song.createdAt instanceof Date ? song.createdAt : new Date(song.createdAt),
           updatedAt: song.updatedAt instanceof Date ? song.updatedAt : new Date(song.updatedAt)

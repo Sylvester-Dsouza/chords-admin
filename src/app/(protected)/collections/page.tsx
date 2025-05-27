@@ -80,11 +80,11 @@ export default function CollectionsPage() {
         setLoading(true)
         const data = await collectionService.getAllCollections()
 
-        // Add placeholder values for songCount and totalViews
+        // Use real view count data from the API
         const collectionsWithStats = data.map(collection => ({
           ...collection,
           songCount: collection.songs?.length || 0,
-          totalViews: Math.floor(Math.random() * 10000), // Placeholder
+          totalViews: collection.viewCount || 0, // Use real view count data
           visibility: collection.isPublic ? "public" as const : "private" as const, // Convert isPublic to visibility
           // Keep the original isActive value from the API
           isActive: typeof collection.isActive === 'boolean' ? collection.isActive : true,
