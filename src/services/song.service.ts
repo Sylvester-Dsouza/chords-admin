@@ -172,6 +172,40 @@ const songService = {
       console.error(`Error deleting song with ID ${id}:`, error);
       throw error;
     }
+  },
+
+  // Bulk operations
+  bulkUpdateStatus: async (songIds: string[], status: 'DRAFT' | 'ACTIVE'): Promise<void> => {
+    try {
+      console.log(`Bulk updating status for ${songIds.length} songs to ${status}`);
+      await apiClient.patch('/songs/bulk/status', { songIds, status });
+      console.log('Bulk status update completed successfully');
+    } catch (error) {
+      console.error('Error in bulk status update:', error);
+      throw error;
+    }
+  },
+
+  bulkDelete: async (songIds: string[]): Promise<void> => {
+    try {
+      console.log(`Bulk deleting ${songIds.length} songs`);
+      await apiClient.delete('/songs/bulk', { data: { songIds } });
+      console.log('Bulk delete completed successfully');
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      throw error;
+    }
+  },
+
+  bulkUpdateTags: async (songIds: string[], tagIds: string[]): Promise<void> => {
+    try {
+      console.log(`Bulk updating tags for ${songIds.length} songs`);
+      await apiClient.patch('/songs/bulk/tags', { songIds, tagIds });
+      console.log('Bulk tag update completed successfully');
+    } catch (error) {
+      console.error('Error in bulk tag update:', error);
+      throw error;
+    }
   }
 };
 

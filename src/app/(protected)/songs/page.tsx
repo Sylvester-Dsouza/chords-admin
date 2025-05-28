@@ -54,6 +54,8 @@ import { Separator } from "@/components/ui/separator"
 
 import songService, { Song } from "@/services/song.service"
 import { MUSICAL_KEYS } from "@/constants/musical-keys"
+import { BulkActionsToolbar, songBulkActions } from "@/components/bulk-operations/bulk-actions-toolbar"
+import { AdvancedFilters, FilterOption, FilterState } from "@/components/filters/advanced-filters"
 
 export default function SongsPage() {
   const router = useRouter()
@@ -62,10 +64,16 @@ export default function SongsPage() {
   const [importing, setImporting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedSongs, setSelectedSongs] = React.useState<string[]>([])
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [difficultyFilter, setDifficultyFilter] = React.useState("all")
-  const [keyFilter, setKeyFilter] = React.useState("all")
-  const [statusFilter, setStatusFilter] = React.useState("all")
+
+  // Advanced filters state
+  const [filters, setFilters] = React.useState<FilterState>({
+    search: "",
+    sortBy: "title",
+    sortOrder: "asc",
+    difficulty: "all",
+    key: "all",
+    status: "all"
+  })
 
   // Add debugging
   React.useEffect(() => {
@@ -120,23 +128,73 @@ export default function SongsPage() {
     fetchSongs()
   }, [])
 
-  // Filter songs based on search query, difficulty, key, and status
-  const filteredSongs = songs.filter((song) => {
-    const matchesSearch =
-      song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (song.artist?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || '')
+  // Filter and sort songs based on advanced filters
+  const filteredAndSortedSongs = React.useMemo(() => {
+    let filtered = songs.filter((song) => {
+      const matchesSearch = !filters.search ||
+        song.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (song.artist?.name?.toLowerCase().includes(filters.search.toLowerCase()) || '')
 
-    const matchesDifficulty =
-      difficultyFilter === "all" || song.difficulty === difficultyFilter
+      const matchesDifficulty = filters.difficulty === "all" || song.difficulty === filters.difficulty
+      const matchesKey = filters.key === "all" || song.key === filters.key
+      const matchesStatus = filters.status === "all" || song.status === filters.status
 
-    const matchesKey =
-      keyFilter === "all" || song.key === keyFilter
+      // Date range filtering
+      if (filters.dateRange?.from) {
+        const songDate = new Date(song.createdAt)
+        if (songDate < filters.dateRange.from) return false
+      }
+      if (filters.dateRange?.to) {
+        const songDate = new Date(song.createdAt)
+        if (songDate > filters.dateRange.to) return false
+      }
 
-    const matchesStatus =
-      statusFilter === "all" || song.status === statusFilter
+      // View count filtering
+      if (filters.views_min && (song.views || 0) < parseInt(filters.views_min)) return false
+      if (filters.views_max && (song.views || 0) > parseInt(filters.views_max)) return false
 
-    return matchesSearch && matchesDifficulty && matchesKey && matchesStatus
-  })
+      return matchesSearch && matchesDifficulty && matchesKey && matchesStatus
+    })
+
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (filters.sortBy) {
+        case "title":
+          aValue = a.title.toLowerCase()
+          bValue = b.title.toLowerCase()
+          break
+        case "artist":
+          aValue = (a.artist?.name || "").toLowerCase()
+          bValue = (b.artist?.name || "").toLowerCase()
+          break
+        case "views":
+          aValue = a.views || 0
+          bValue = b.views || 0
+          break
+        case "likes":
+          aValue = a.likes || 0
+          bValue = b.likes || 0
+          break
+        case "createdAt":
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
+          break
+        default:
+          aValue = a.title.toLowerCase()
+          bValue = b.title.toLowerCase()
+      }
+
+      if (filters.sortOrder === "desc") {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
+      } else {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
+      }
+    })
+
+    return filtered
+  }, [songs, filters])
 
   // Toggle song selection
   const toggleSongSelection = (songId: string) => {
@@ -149,11 +207,44 @@ export default function SongsPage() {
 
   // Toggle all songs selection
   const toggleAllSongs = () => {
-    if (selectedSongs.length === filteredSongs.length) {
+    if (selectedSongs.length === filteredAndSortedSongs.length) {
       setSelectedSongs([])
     } else {
-      setSelectedSongs(filteredSongs.map((song) => song.id))
+      setSelectedSongs(filteredAndSortedSongs.map((song) => song.id))
     }
+  }
+
+  // Handle bulk actions
+  const handleBulkAction = async (actionId: string, selectedItems: string[]) => {
+    switch (actionId) {
+      case "activate":
+        // Implement bulk activate
+        await songService.bulkUpdateStatus(selectedItems, "ACTIVE")
+        break
+      case "deactivate":
+        await songService.bulkUpdateStatus(selectedItems, "DRAFT")
+        break
+      case "delete":
+        await songService.bulkDelete(selectedItems)
+        break
+      case "export":
+        // Implement bulk export for selected songs
+        await handleBulkExport(selectedItems)
+        break
+      default:
+        throw new Error(`Unknown action: ${actionId}`)
+    }
+
+    // Refresh songs list
+    const updatedSongs = await songService.getAllSongs()
+    setSongs(updatedSongs)
+  }
+
+  const handleBulkExport = async (songIds: string[]) => {
+    // Implementation for exporting selected songs
+    const selectedSongsData = songs.filter(song => songIds.includes(song.id))
+    // Convert to CSV and download
+    console.log("Exporting songs:", selectedSongsData)
   }
 
   // Format date for display
@@ -175,15 +266,49 @@ export default function SongsPage() {
     }
   }
 
-  // Add a state to track if this is the initial render
-  const [isInitialRender, setIsInitialRender] = React.useState(true);
-
-  // Use this effect to set isInitialRender to false after the component mounts
-  React.useEffect(() => {
-    if (isInitialRender) {
-      setIsInitialRender(false);
+  // Filter options for advanced filters
+  const filterOptions: FilterOption[] = [
+    {
+      id: "difficulty",
+      label: "Difficulty",
+      type: "select",
+      options: [
+        { value: "easy", label: "Easy" },
+        { value: "medium", label: "Medium" },
+        { value: "hard", label: "Hard" }
+      ]
+    },
+    {
+      id: "key",
+      label: "Key",
+      type: "select",
+      options: MUSICAL_KEYS.map(key => ({ value: key.value, label: key.label }))
+    },
+    {
+      id: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { value: "DRAFT", label: "Draft" },
+        { value: "ACTIVE", label: "Active" }
+      ]
+    },
+    {
+      id: "views",
+      label: "View Count",
+      type: "number",
+      min: 0,
+      max: 100000
     }
-  }, [isInitialRender]);
+  ]
+
+  const sortOptions = [
+    { value: "title", label: "Title" },
+    { value: "artist", label: "Artist" },
+    { value: "views", label: "Views" },
+    { value: "likes", label: "Likes" },
+    { value: "createdAt", label: "Created Date" }
+  ]
 
   return (
     <SidebarProvider
@@ -405,158 +530,35 @@ export default function SongsPage() {
         </Card>
       </div>
 
-      {/* Table with filters */}
+      {/* Advanced Filters */}
+      <AdvancedFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        filterOptions={filterOptions}
+        searchPlaceholder="Search songs by title or artist..."
+        sortOptions={sortOptions}
+        onReset={() => setFilters({
+          search: "",
+          sortBy: "title",
+          sortOrder: "asc",
+          difficulty: "all",
+          key: "all",
+          status: "all"
+        })}
+      />
+
+      {/* Table with bulk operations */}
       <div className="rounded-md border">
-        {/* Table filters */}
-        <div className="border-b p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Search songs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full sm:w-[300px]"
-              />
-              <Button variant="outline" size="sm" className="h-9">
-                <IconSearch className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                <SelectTrigger className="h-9 w-[150px]">
-                  <SelectValue placeholder="Filter by difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Difficulties</SelectItem>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={keyFilter} onValueChange={setKeyFilter}>
-                <SelectTrigger className="h-9 w-[140px]">
-                  <SelectValue placeholder="Filter by key" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Keys</SelectItem>
-                  {MUSICAL_KEYS.map((key) => (
-                    <SelectItem key={key.value} value={key.value}>
-                      {key.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-9 w-[120px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="DRAFT">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                      Draft
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="ACTIVE">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      Active
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
-                    <IconFilter className="mr-2 h-4 w-4" />
-                    Columns
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.title}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, title: checked })
-                    }
-                  >
-                    Title
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.artist}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, artist: checked })
-                    }
-                  >
-                    Artist
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.album}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, album: checked })
-                    }
-                  >
-                    Album
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.key}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, key: checked })
-                    }
-                  >
-                    Key
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.difficulty}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, difficulty: checked })
-                    }
-                  >
-                    Difficulty
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.status}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, status: checked })
-                    }
-                  >
-                    Status
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.views}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, views: checked })
-                    }
-                  >
-                    Views
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.likes}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, likes: checked })
-                    }
-                  >
-                    Likes
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.createdAt}
-                    onCheckedChange={(checked) =>
-                      setVisibleColumns({ ...visibleColumns, createdAt: checked })
-                    }
-                  >
-                    Created At
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {selectedSongs.length > 0 && (
-                <Button variant="destructive" size="sm" className="h-9">
-                  <IconTrash className="mr-2 h-4 w-4" />
-                  Delete ({selectedSongs.length})
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Bulk Actions Toolbar */}
+        <BulkActionsToolbar
+          selectedItems={selectedSongs}
+          totalItems={filteredAndSortedSongs.length}
+          onClearSelection={() => setSelectedSongs([])}
+          onSelectAll={toggleAllSongs}
+          actions={songBulkActions}
+          onAction={handleBulkAction}
+          resourceType="songs"
+        />
 
         {/* Error message */}
         {error && (
@@ -592,8 +594,8 @@ export default function SongsPage() {
                 <TableHead className="w-12">
                   <Checkbox
                     checked={
-                      filteredSongs.length > 0 &&
-                      selectedSongs.length === filteredSongs.length
+                      filteredAndSortedSongs.length > 0 &&
+                      selectedSongs.length === filteredAndSortedSongs.length
                     }
                     onCheckedChange={toggleAllSongs}
                     aria-label="Select all songs"
@@ -612,7 +614,7 @@ export default function SongsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSongs.length === 0 ? (
+              {filteredAndSortedSongs.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={
@@ -626,7 +628,7 @@ export default function SongsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSongs.map((song) => (
+                filteredAndSortedSongs.map((song) => (
                   <TableRow key={song.id}>
                     <TableCell>
                       <Checkbox
@@ -749,8 +751,8 @@ export default function SongsPage() {
         {/* Pagination */}
         <div className="flex items-center justify-between border-t px-4 py-2">
           <div className="text-sm text-muted-foreground">
-            Showing <strong>1</strong> to <strong>{filteredSongs.length}</strong> of{" "}
-            <strong>{filteredSongs.length}</strong> songs
+            Showing <strong>1</strong> to <strong>{filteredAndSortedSongs.length}</strong> of{" "}
+            <strong>{filteredAndSortedSongs.length}</strong> songs
           </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" disabled>
