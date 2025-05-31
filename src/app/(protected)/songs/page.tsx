@@ -86,6 +86,7 @@ export default function SongsPage() {
   }, []);
 
   const [visibleColumns, setVisibleColumns] = React.useState({
+    coverImage: true,
     title: true,
     artist: true,
     album: true,
@@ -601,6 +602,7 @@ export default function SongsPage() {
                     aria-label="Select all songs"
                   />
                 </TableHead>
+                {visibleColumns.coverImage && <TableHead>Cover</TableHead>}
                 {visibleColumns.title && <TableHead>Title</TableHead>}
                 {visibleColumns.artist && <TableHead>Artist</TableHead>}
                 {visibleColumns.album && <TableHead>Album</TableHead>}
@@ -637,6 +639,31 @@ export default function SongsPage() {
                         aria-label={`Select ${song.title}`}
                       />
                     </TableCell>
+                    {visibleColumns.coverImage && (
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {song.imageUrl ? (
+                            <img
+                              src={song.imageUrl}
+                              alt={`${song.title} cover`}
+                              className="w-10 h-10 rounded-md object-cover"
+                              onError={(e) => {
+                                // Fallback to icon if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`w-10 h-10 rounded-md bg-muted flex items-center justify-center ${song.imageUrl ? 'hidden' : 'flex'}`}
+                          >
+                            <IconMusic className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        </div>
+                      </TableCell>
+                    )}
                     {visibleColumns.title && (
                       <TableCell className="font-medium">
                         <div className="flex items-center">

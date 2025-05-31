@@ -131,6 +131,20 @@ const artistService = {
       console.error(`Error deleting artist with ID ${id}:`, error);
       throw error;
     }
+  },
+
+  // Get artist song count by querying songs endpoint
+  getArtistSongCount: async (id: string): Promise<number> => {
+    try {
+      console.log(`Fetching song count for artist with ID ${id}`);
+      const response = await apiClient.get('/songs', { params: { artistId: id } });
+      console.log(`Artist ${id} has ${response.data.length} songs`);
+      return response.data.length;
+    } catch (error) {
+      console.error(`Error fetching song count for artist with ID ${id}:`, error);
+      // Return 0 if endpoint fails
+      return 0;
+    }
   }
 };
 

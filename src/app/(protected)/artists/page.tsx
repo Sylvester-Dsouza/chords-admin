@@ -67,6 +67,7 @@ export default function ArtistsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("all")
   const [visibleColumns, setVisibleColumns] = React.useState({
+    coverImage: true,
     name: true,
     songCount: true,
     totalViews: true,
@@ -85,24 +86,40 @@ export default function ArtistsPage() {
         // Log the raw data from API to debug
         console.log('Initial load - Raw artist data from API:', data);
 
-        // Add placeholder values for songCount, totalViews, and isFeatured
-        const artistsWithStats = data.map(artist => {
+        // Fetch stats for each artist to get real song counts
+        const artistsWithStats = await Promise.all(data.map(async (artist) => {
           // Log each artist's featured status
           console.log(`Initial load - Artist ${artist.name} (${artist.id}) - isFeatured:`, artist.isFeatured);
 
-          return {
-            ...artist,
-            songCount: 0, // This would need to be fetched from the API
-            totalViews: artist.viewCount || 0, // Use real view count data
-            // Keep the original isFeatured value from the API
-            isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
-            // Keep the original isActive value from the API
-            isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
-            // Convert string dates to Date objects if needed
-            createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
-            updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
-          };
-        })
+          try {
+            // Try to get real song count for the artist
+            const songCount = await artistService.getArtistSongCount(artist.id);
+            return {
+              ...artist,
+              songCount: songCount, // Use real song count from API
+              totalViews: artist.viewCount || 0, // Use real view count data
+              // Keep the original isFeatured value from the API
+              isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+              // Keep the original isActive value from the API
+              isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
+              // Convert string dates to Date objects if needed
+              createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+              updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+            };
+          } catch (error) {
+            console.warn(`Failed to fetch song count for artist ${artist.name}:`, error);
+            // Fallback to default values if song count fetch fails
+            return {
+              ...artist,
+              songCount: 0,
+              totalViews: artist.viewCount || 0,
+              isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+              isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
+              createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+              updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+            };
+          }
+        }))
 
         setArtists(artistsWithStats)
         setError(null)
@@ -289,20 +306,37 @@ export default function ArtistsPage() {
                           // Log the raw data from API to debug
                           console.log('Raw artist data from API:', data);
 
-                          const processedArtists = data.map((artist: any) => {
+                          const processedArtists = await Promise.all(data.map(async (artist: any) => {
                             // Log each artist's featured status
                             console.log(`Artist ${artist.name} (${artist.id}) - isFeatured:`, artist.isFeatured);
 
-                            return {
-                              ...artist,
-                              songCount: 0,
-                              totalViews: artist.viewCount || 0, // Use real view count data
-                              // Keep the original isFeatured value from the API
-                              isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
-                              createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
-                              updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
-                            };
-                          });
+                            try {
+                              // Try to get real song count for the artist
+                              const songCount = await artistService.getArtistSongCount(artist.id);
+                              return {
+                                ...artist,
+                                songCount: songCount, // Use real song count from API
+                                totalViews: artist.viewCount || 0, // Use real view count data
+                                // Keep the original isFeatured value from the API
+                                isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+                                isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
+                                createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+                                updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+                              };
+                            } catch (error) {
+                              console.warn(`Failed to fetch song count for artist ${artist.name}:`, error);
+                              // Fallback to default values if song count fetch fails
+                              return {
+                                ...artist,
+                                songCount: 0,
+                                totalViews: artist.viewCount || 0,
+                                isFeatured: typeof artist.isFeatured === 'boolean' ? artist.isFeatured : false,
+                                isActive: typeof artist.isActive === 'boolean' ? artist.isActive : true,
+                                createdAt: artist.createdAt instanceof Date ? artist.createdAt : new Date(artist.createdAt),
+                                updatedAt: artist.updatedAt instanceof Date ? artist.updatedAt : new Date(artist.updatedAt)
+                              };
+                            }
+                          }));
 
                           setArtists(processedArtists);
                           setError(null);
@@ -534,6 +568,14 @@ export default function ArtistsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuCheckboxItem
+                        checked={visibleColumns.coverImage}
+                        onCheckedChange={(checked) =>
+                          setVisibleColumns({ ...visibleColumns, coverImage: checked })
+                        }
+                      >
+                        Cover Image
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
                         checked={visibleColumns.name}
                         onCheckedChange={(checked) =>
                           setVisibleColumns({ ...visibleColumns, name: checked })
@@ -634,6 +676,7 @@ export default function ArtistsPage() {
                         aria-label="Select all artists"
                       />
                     </TableHead>
+                    {visibleColumns.coverImage && <TableHead>Cover</TableHead>}
                     {visibleColumns.name && <TableHead>Name</TableHead>}
                     {visibleColumns.songCount && <TableHead className="text-right">Songs</TableHead>}
                     {visibleColumns.totalViews && <TableHead className="text-right">Views</TableHead>}
@@ -667,6 +710,31 @@ export default function ArtistsPage() {
                             aria-label={`Select ${artist.name}`}
                           />
                         </TableCell>
+                        {visibleColumns.coverImage && (
+                          <TableCell>
+                            <div className="flex items-center justify-center">
+                              {artist.imageUrl ? (
+                                <img
+                                  src={artist.imageUrl}
+                                  alt={`${artist.name} cover`}
+                                  className="w-10 h-10 rounded-md object-cover"
+                                  onError={(e) => {
+                                    // Fallback to icon if image fails to load
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className={`w-10 h-10 rounded-md bg-muted flex items-center justify-center ${artist.imageUrl ? 'hidden' : 'flex'}`}
+                              >
+                                <IconUser className="w-5 h-5 text-muted-foreground" />
+                              </div>
+                            </div>
+                          </TableCell>
+                        )}
                         {visibleColumns.name && (
                           <TableCell className="font-medium">
                             <div className="flex items-center">
