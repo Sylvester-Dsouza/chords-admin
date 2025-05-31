@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
   IconDashboard,
@@ -14,14 +13,11 @@ import {
   IconMessageCircle,
   IconSettings,
   IconHelp,
-  IconSearch,
   IconInnerShadowTop,
   IconList,
   IconUser,
   IconCreditCard,
   IconBrandChrome,
-  IconPlaylist,
-  IconHeart,
   IconBrandFirebase,
   IconPalette,
   IconBell,
@@ -34,7 +30,6 @@ import {
   IconDatabase,
   IconCpu,
   IconClockHour4,
-  IconLayoutDashboard,
   IconBug,
   IconHome
 } from "@tabler/icons-react"
@@ -153,6 +148,23 @@ const data = {
       title: "Home Page",
       url: "/home-sections",
       icon: IconHome,
+    },
+    {
+      title: "Courses",
+      url: "/courses",
+      icon: IconMicrophone,
+      subItems: [
+        {
+          title: "All Courses",
+          url: "/courses",
+          icon: IconList,
+        },
+        {
+          title: "Add New Course",
+          url: "/courses/new",
+          icon: IconPlus,
+        },
+      ],
     },
   ],
   navSecondary: [
