@@ -166,6 +166,23 @@ const data = {
         },
       ],
     },
+    {
+      title: "Vocals",
+      url: "/vocals",
+      icon: IconMicrophone,
+      subItems: [
+        {
+          title: "All Categories",
+          url: "/vocals",
+          icon: IconList,
+        },
+        {
+          title: "Add New Category",
+          url: "/vocals/categories/new",
+          icon: IconPlus,
+        },
+      ],
+    },
   ],
   navSecondary: [
     {
