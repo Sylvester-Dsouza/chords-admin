@@ -13,6 +13,23 @@ import {
   IconPlayerPause,
   IconGripVertical,
 } from "@tabler/icons-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -108,6 +125,150 @@ export default function VocalCategoryDetailPage() {
 
     return () => audio.removeEventListener('ended', handleEnded)
   }, [])
+
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Handle drag end for reordering items
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!category) return
+
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = category.items.findIndex(item => item.id === active.id)
+    const newIndex = category.items.findIndex(item => item.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return
+    }
+
+    // Update local state immediately for better UX
+    const newItems = arrayMove(category.items, oldIndex, newIndex)
+    setCategory({
+      ...category,
+      items: newItems
+    })
+
+    try {
+      // Send reorder request to backend
+      const itemIds = newItems.map(item => item.id)
+      await vocalService.reorderItems(categoryId, { itemIds })
+      toast.success('Items reordered successfully')
+    } catch (error) {
+      console.error('Error reordering items:', error)
+      toast.error('Failed to reorder items. Please try again.')
+      // Revert the local state on error
+      fetchCategory()
+    }
+  }
+
+  // Sortable Item Component
+  const SortableItemRow = ({ item, index }: { item: VocalItem; index: number }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    }
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`flex items-center justify-between p-4 border rounded-lg transition-all duration-200 bg-card border-border ${
+          isDragging
+            ? 'opacity-50 shadow-lg scale-105 z-50'
+            : 'hover:bg-accent/50 hover:shadow-sm hover:border-primary/20'
+        }`}
+      >
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-accent/30 transition-colors"
+            >
+              <IconGripVertical className="h-4 w-4 text-gray-400" />
+            </div>
+            <span className="text-sm text-gray-500 w-8">{index + 1}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toggleAudio(item)}
+          >
+            {playingItemId === item.id ? (
+              <IconPlayerPause className="h-4 w-4" />
+            ) : (
+              <IconPlayerPlay className="h-4 w-4" />
+            )}
+          </Button>
+          <div>
+            <h4 className="font-medium">{item.name}</h4>
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <span>{formatDuration(item.durationSeconds)}</span>
+              <span>{(item.fileSizeBytes / 1024 / 1024).toFixed(2)} MB</span>
+              {!item.isActive && <Badge variant="secondary">Inactive</Badge>}
+            </div>
+          </div>
+        </div>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/vocals/items/${item.id}/edit`)}
+          >
+            <IconEdit className="h-3 w-3" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <IconTrash className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{item.name}"?
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => handleDeleteItem(item.id, item.name)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -212,74 +373,22 @@ export default function VocalCategoryDetailPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {category.items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <IconGripVertical className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-500 w-8">{index + 1}</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleAudio(item)}
-                        >
-                          {playingItemId === item.id ? (
-                            <IconPlayerPause className="h-4 w-4" />
-                          ) : (
-                            <IconPlayerPlay className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <div>
-                          <h4 className="font-medium">{item.name}</h4>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>{formatDuration(item.durationSeconds)}</span>
-                            <span>{(item.fileSizeBytes / 1024 / 1024).toFixed(2)} MB</span>
-                            {!item.isActive && <Badge variant="secondary">Inactive</Badge>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/vocals/items/${item.id}/edit`)}
-                        >
-                          <IconEdit className="h-3 w-3" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <IconTrash className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Item</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{item.name}"? 
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteItem(item.id, item.name)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={category.items.map(item => item.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {category.items.map((item, index) => (
+                        <SortableItemRow key={item.id} item={item} index={index} />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               )}
             </CardContent>
           </Card>

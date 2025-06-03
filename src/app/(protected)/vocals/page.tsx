@@ -12,6 +12,23 @@ import {
   IconEye,
   IconGripVertical,
 } from "@tabler/icons-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -76,6 +93,61 @@ export default function VocalsPage() {
     }
   }
 
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Handle drag end for reordering categories
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = filteredCategories.findIndex(category => category.id === active.id)
+    const newIndex = filteredCategories.findIndex(category => category.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return
+    }
+
+    // Update local state immediately for better UX
+    const newCategories = arrayMove(filteredCategories, oldIndex, newIndex)
+
+    // Update the main categories array to maintain consistency
+    const updatedCategories = [...categories]
+    const categoryToMove = updatedCategories.find(cat => cat.id === active.id)
+    if (categoryToMove) {
+      const mainOldIndex = updatedCategories.findIndex(cat => cat.id === active.id)
+      const mainNewIndex = updatedCategories.findIndex(cat => cat.id === over.id)
+      if (mainOldIndex !== -1 && mainNewIndex !== -1) {
+        const reorderedCategories = arrayMove(updatedCategories, mainOldIndex, mainNewIndex)
+        setCategories(reorderedCategories)
+      }
+    }
+
+    try {
+      // Send reorder request to backend
+      const categoryIds = newCategories.map(category => category.id)
+      await vocalService.reorderCategories({ categoryIds })
+      toast.success('Categories reordered successfully')
+    } catch (error) {
+      console.error('Error reordering categories:', error)
+      toast.error('Failed to reorder categories. Please try again.')
+      // Revert the local state on error
+      fetchCategories()
+    }
+  }
+
   // Filter categories by type
   const filteredCategories = React.useMemo(() => {
     if (activeTab === "all") return categories
@@ -90,6 +162,115 @@ export default function VocalsPage() {
   // Get category type color
   const getCategoryTypeColor = (type: VocalType) => {
     return type === VocalType.WARMUP ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+  }
+
+  // Sortable Category Card Component
+  const SortableCategoryCard = ({ category }: { category: VocalCategory }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: category.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    }
+
+    const IconComponent = getCategoryIcon(category.type)
+
+    return (
+      <Card
+        ref={setNodeRef}
+        style={style}
+        className={`transition-all duration-200 bg-card border-border ${
+          isDragging
+            ? 'opacity-50 shadow-lg scale-105 z-50'
+            : 'hover:shadow-md hover:scale-[1.02] hover:border-primary/20'
+        }`}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-2">
+              <IconComponent className="h-5 w-5 text-gray-600" />
+              <div>
+                <CardTitle className="text-lg">{category.name}</CardTitle>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge className={getCategoryTypeColor(category.type)}>
+                    {category.type}
+                  </Badge>
+                  <Badge variant="outline">
+                    {category.itemCount || 0} items
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            <div
+              {...attributes}
+              {...listeners}
+              className="flex items-center space-x-1 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-accent/30 transition-colors"
+            >
+              <IconGripVertical className="h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {category.description && (
+            <CardDescription className="mb-4">
+              {category.description}
+            </CardDescription>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/vocals/categories/${category.id}`)}
+              >
+                <IconEye className="mr-1 h-3 w-3" />
+                View
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/vocals/categories/${category.id}/edit`)}
+              >
+                <IconEdit className="mr-1 h-3 w-3" />
+                Edit
+              </Button>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <IconTrash className="h-3 w-3" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Category</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{category.name}"?
+                    This action cannot be undone and will only work if the category has no items.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleDelete(category.id, category.name)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   if (loading) {
@@ -164,88 +345,22 @@ export default function VocalsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredCategories.map((category) => {
-                    const IconComponent = getCategoryIcon(category.type)
-                    return (
-                      <Card key={category.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-2">
-                              <IconComponent className="h-5 w-5 text-gray-600" />
-                              <div>
-                                <CardTitle className="text-lg">{category.name}</CardTitle>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <Badge className={getCategoryTypeColor(category.type)}>
-                                    {category.type}
-                                  </Badge>
-                                  <Badge variant="outline">
-                                    {category.itemCount || 0} items
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <IconGripVertical className="h-4 w-4 text-gray-400" />
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          {category.description && (
-                            <CardDescription className="mb-4">
-                              {category.description}
-                            </CardDescription>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/vocals/categories/${category.id}`)}
-                              >
-                                <IconEye className="mr-1 h-3 w-3" />
-                                View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/vocals/categories/${category.id}/edit`)}
-                              >
-                                <IconEdit className="mr-1 h-3 w-3" />
-                                Edit
-                              </Button>
-                            </div>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <IconTrash className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{category.name}"? 
-                                    This action cannot be undone and will only work if the category has no items.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(category.id, category.name)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={filteredCategories.map(category => category.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredCategories.map((category) => (
+                        <SortableCategoryCard key={category.id} category={category} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               )}
             </TabsContent>
           </Tabs>
