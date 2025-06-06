@@ -186,28 +186,6 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
-      subItems: [
-        {
-          title: "General",
-          url: "/settings/general",
-          icon: IconSettings,
-        },
-        {
-          title: "Appearance",
-          url: "/settings/appearance",
-          icon: IconPalette,
-        },
-        {
-          title: "Firebase",
-          url: "/settings/firebase",
-          icon: IconBrandFirebase,
-        },
-      ],
-    },
-    {
       title: "Help",
       url: "/help",
       icon: IconHelp,
