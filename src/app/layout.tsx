@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Christian Chords Admin",
-  description: "Admin dashboard for Christian Chords app",
+  title: "Stuthi Admin",
+  description: "Admin dashboard for Stuthi app",
 };
 
 export default function RootLayout({

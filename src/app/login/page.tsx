@@ -86,7 +86,7 @@ export default function LoginPage() {
           <div className="rounded-full bg-primary/10 p-4 mb-2">
             <IconMusic className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Christian Chords</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Stuthi</h1>
           <p className="text-muted-foreground">Admin Dashboard</p>
         </div>
 

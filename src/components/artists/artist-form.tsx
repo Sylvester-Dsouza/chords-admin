@@ -168,10 +168,10 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
         isFeatured: formState.isFeatured,
         isActive: formState.isActive,
         socialLinks: {
-          facebook: formState.socialLinks.facebook || undefined,
-          twitter: formState.socialLinks.twitter || undefined,
-          instagram: formState.socialLinks.instagram || undefined,
-          youtube: formState.socialLinks.youtube || undefined,
+          facebook: formState.socialLinks.facebook || null,
+          twitter: formState.socialLinks.twitter || null,
+          instagram: formState.socialLinks.instagram || null,
+          youtube: formState.socialLinks.youtube || null,
         },
       }
 

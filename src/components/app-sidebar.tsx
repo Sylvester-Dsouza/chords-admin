@@ -320,13 +320,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
               onClick={(e) => {
                 e.preventDefault();
-                console.log("Clicked on Christian Chords logo, navigating to /dashboard");
+                console.log("Clicked on Stuthi logo, navigating to /dashboard");
                 handleNavigation('/dashboard');
               }}
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Christian Chords</span>
+                <span className="text-base font-semibold">Stuthi Admin</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
