@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable } from "@/components/data-table"
 import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -13,27 +12,38 @@ import * as React from "react"
 import { AnalyticsService } from "@/services/analytics.service"
 import { toast } from "sonner"
 
-// Mock data for DataTable until we have real task/project data
-import data from "./data.json"
-
 export default function Page() {
   // State for analytics data
   const [analyticsData, setAnalyticsData] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Fetch analytics data on component mount
+  // Fetch analytics data on component mount with optimized data fetching
   React.useEffect(() => {
+    // Create an AbortController to cancel requests if component unmounts
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
     const fetchAnalyticsData = async () => {
       try {
         setIsLoading(true)
         setError(null)
-
-        // Fetch analytics data with rate limiting
-        const data = await AnalyticsService.getAllAnalytics('month')
-        setAnalyticsData(data)
-
-        console.log("Dashboard analytics data loaded:", data)
+        
+        // Use Promise.all to fetch only the essential data in parallel
+        // This reduces the sequential delays in the original implementation
+        const [userActivity, contentEngagement] = await Promise.all([
+          AnalyticsService.getUserActivityMetrics('month'),
+          AnalyticsService.getContentEngagementMetrics('month')
+        ]);
+        
+        // Combine the results
+        const combinedData = {
+          userActivity,
+          contentEngagement
+        };
+        
+        setAnalyticsData(combinedData)
+        console.log("Dashboard analytics data loaded:", combinedData)
       } catch (err: any) {
         console.error("Failed to fetch analytics data:", err)
 
@@ -60,6 +70,11 @@ export default function Page() {
     }
 
     fetchAnalyticsData()
+    
+    // Cleanup function to abort fetch requests if component unmounts
+    return () => {
+      controller.abort();
+    };
   }, [])
 
   return (
@@ -90,7 +105,6 @@ export default function Page() {
                   isLoading={isLoading}
                 />
               </div>
-              <DataTable data={data} />
             </div>
           </div>
         </div>

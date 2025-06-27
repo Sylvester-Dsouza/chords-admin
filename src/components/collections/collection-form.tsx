@@ -55,6 +55,8 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
     name: initialData?.name || "",
     description: initialData?.description || "",
     imageUrl: initialData?.imageUrl || "",
+    metaTitle: initialData?.metaTitle || "",
+    metaDescription: initialData?.metaDescription || "",
     isPublic: initialData?.isPublic !== false, // Default to true if not specified
     isActive: initialData?.isActive !== undefined ? initialData.isActive : true, // Default to true if not specified
   })
@@ -204,6 +206,8 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
         name: formState.name,
         description: formState.description || undefined,
         imageUrl: imageUrl || undefined,
+        metaTitle: formState.metaTitle || undefined,
+        metaDescription: formState.metaDescription || undefined,
         isPublic: formState.isPublic,
         isActive: formState.isActive,
       }
@@ -564,6 +568,40 @@ export default function CollectionForm({ mode, initialData, title }: CollectionF
                     <p className="text-sm text-muted-foreground">
                       Inactive collections are hidden from the app and only visible in the admin panel.
                     </p>
+                  </div>
+
+                  <div className="space-y-4 mt-4">
+                    <div className="border-t pt-4">
+                      <h3 className="text-lg font-medium mb-2">SEO Settings</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Search engine optimization settings
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Meta Title</label>
+                      <Input
+                        placeholder="Custom meta title for SEO"
+                        value={formState.metaTitle}
+                        onChange={(e) => setFormState({...formState, metaTitle: e.target.value})}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Custom title for search engines. If left empty, a default will be generated.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Meta Description</label>
+                      <textarea
+                        placeholder="Custom meta description for SEO"
+                        className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={formState.metaDescription}
+                        onChange={(e) => setFormState({...formState, metaDescription: e.target.value})}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Custom description for search engines. If left empty, a default will be generated.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

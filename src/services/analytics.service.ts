@@ -1,5 +1,48 @@
 import { apiClient } from '@/lib/api-client';
 
+// Cache implementation for analytics data
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+  expiry: number;
+}
+
+class AnalyticsCache {
+  private cache: Record<string, CacheItem<any>> = {};
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes default TTL
+
+  set<T>(key: string, data: T, ttl: number = this.DEFAULT_TTL): void {
+    this.cache[key] = {
+      data,
+      timestamp: Date.now(),
+      expiry: Date.now() + ttl
+    };
+  }
+
+  get<T>(key: string): T | null {
+    const item = this.cache[key];
+    if (!item) return null;
+    
+    // Check if the item has expired
+    if (Date.now() > item.expiry) {
+      delete this.cache[key];
+      return null;
+    }
+    
+    return item.data as T;
+  }
+
+  invalidate(key: string): void {
+    delete this.cache[key];
+  }
+
+  invalidateAll(): void {
+    this.cache = {};
+  }
+}
+
+const analyticsCache = new AnalyticsCache();
+
 export const AnalyticsService = {
   // Get most viewed songs
   async getMostViewedSongs(limit: number = 10, period: string = 'all'): Promise<any[]> {
@@ -45,10 +88,21 @@ export const AnalyticsService = {
     }
   },
 
-  // Get user activity metrics
+  // Get user activity metrics with caching
   async getUserActivityMetrics(period: string = 'month'): Promise<any> {
+    const cacheKey = `user-activity-${period}`;
+    const cachedData = analyticsCache.get(cacheKey);
+    
+    // Return cached data if available
+    if (cachedData) {
+      console.log('Using cached user activity metrics');
+      return cachedData;
+    }
+    
     try {
       const response = await apiClient.get(`/admin/analytics/metrics/user-activity?period=${period}`);
+      // Cache the response data for 5 minutes
+      analyticsCache.set(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching user activity metrics:', error);
@@ -62,10 +116,21 @@ export const AnalyticsService = {
     }
   },
 
-  // Get content engagement metrics
+  // Get content engagement metrics with caching
   async getContentEngagementMetrics(period: string = 'month'): Promise<any> {
+    const cacheKey = `content-engagement-${period}`;
+    const cachedData = analyticsCache.get(cacheKey);
+    
+    // Return cached data if available
+    if (cachedData) {
+      console.log('Using cached content engagement metrics');
+      return cachedData;
+    }
+    
     try {
       const response = await apiClient.get(`/admin/analytics/metrics/content-engagement?period=${period}`);
+      // Cache the response data for 5 minutes
+      analyticsCache.set(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching content engagement metrics:', error);
@@ -89,12 +154,18 @@ export const AnalyticsService = {
     }
   },
 
-  // Get all analytics data in one call with rate limiting
+  // Get all analytics data in one call with optimized parallel fetching and caching
   async getAllAnalytics(period: string = 'month'): Promise<any> {
+    const cacheKey = `all-analytics-${period}`;
+    const cachedData = analyticsCache.get(cacheKey);
+    
+    // Return cached data if available
+    if (cachedData) {
+      console.log('Using cached analytics data');
+      return cachedData;
+    }
+    
     try {
-      // Add a delay between API calls to avoid rate limiting
-      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
       // First check if we can access the API by making a simple request
       try {
         await apiClient.get('/admin/analytics/metrics/user-activity?period=day');
@@ -106,35 +177,36 @@ export const AnalyticsService = {
         }
       }
 
-      // Instead of making all requests in parallel, make them sequentially with delays
-      console.log('Fetching user activity metrics...');
-      const userActivity = await this.getUserActivityMetrics(period);
-      await delay(300); // Add a 300ms delay between requests
-
-      console.log('Fetching content engagement metrics...');
-      const contentEngagement = await this.getContentEngagementMetrics(period);
-      await delay(300);
-
-      console.log('Fetching most viewed songs...');
-      const mostViewedSongs = await this.getMostViewedSongs(5, period);
-      await delay(300);
-
-      console.log('Fetching most viewed artists...');
-      const mostViewedArtists = await this.getMostViewedArtists(5, period);
-      await delay(300);
-
-      console.log('Fetching most viewed collections...');
-      const mostViewedCollections = await this.getMostViewedCollections(5, period);
+      // Fetch all data in parallel instead of sequentially
+      console.log('Fetching all analytics data in parallel...');
+      const [
+        userActivity,
+        contentEngagement,
+        mostViewedSongs,
+        mostViewedArtists,
+        mostViewedCollections
+      ] = await Promise.all([
+        this.getUserActivityMetrics(period),
+        this.getContentEngagementMetrics(period),
+        this.getMostViewedSongs(5, period),
+        this.getMostViewedArtists(5, period),
+        this.getMostViewedCollections(5, period)
+      ]);
 
       console.log('All analytics data fetched successfully');
 
-      return {
+      const result = {
         mostViewedSongs,
         mostViewedArtists,
         mostViewedCollections,
         userActivity,
         contentEngagement
       };
+      
+      // Cache the combined results
+      analyticsCache.set(cacheKey, result, 5 * 60 * 1000); // 5 minutes TTL
+      
+      return result;
     } catch (error: any) {
       console.error('Error fetching all analytics:', error);
       // If it's our specific auth error, rethrow it
@@ -161,5 +233,11 @@ export const AnalyticsService = {
         }
       };
     }
+  },
+  
+  // Method to manually invalidate cache
+  invalidateCache(): void {
+    analyticsCache.invalidateAll();
+    console.log('Analytics cache invalidated');
   }
 };

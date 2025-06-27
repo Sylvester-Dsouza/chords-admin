@@ -152,17 +152,21 @@ export function ChordPreview({
         />
         <p className="text-sm text-muted-foreground">
           <strong>Format Guide:</strong><br />
-          - Use [Chord] for chord notations (e.g., [G], [Am7], [D/F#])<br />
-          - Use &#123;Section&#125; for song sections (e.g., &#123;Verse&#125;, &#123;Chorus&#125;)<br />
+          - Section identifiers should be in &#123;&#125; (e.g., &#123;Verse&#125;, &#123;Chorus&#125;)<br />
+          - Chords should be in [] and placed above the lyrics<br />
           <br />
           <strong>Example:</strong><br />
-          &#123;Verse 1&#125;<br />
-          [G]Amazing [D]grace, how [C]sweet the [G]sound<br />
-          [G]That saved a [D]wretch like [G]me<br />
+          &#123;Pre-Chorus&#125;<br />
+          [C]     [G]     [C]         [G]<br />
+          Aaur hum kahte hei, dil se kahte hei<br />
+          [C]            [D]<br />
+          Aaur hum kahte hei<br />
           <br />
-          &#123;Chorus&#125;<br />
-          [C]I once was [G]lost, but [D]now am [G]found<br />
-          [C]Was blind but [G]now I [D]see[G]
+          &#123;Verse 1&#125;<br />
+          [G]       [D]        [C]         [G]<br />
+          Amazing grace, how sweet the sound<br />
+          [G]        [D]         [G]<br />
+          That saved a wretch like me
         </p>
 
       </div>

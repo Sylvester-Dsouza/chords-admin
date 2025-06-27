@@ -82,17 +82,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Get the Firebase ID token
           const idToken = await firebaseUser.getIdToken(true)
 
-          // Set up token refresh interval (refresh every 15 minutes)
+          // Set up token refresh interval (refresh every 45 minutes)
           // Firebase tokens typically expire after 1 hour
           if (tokenRefreshInterval) {
             clearInterval(tokenRefreshInterval);
           }
 
-          // Immediately refresh the token to ensure it's fresh
-          await refreshToken(firebaseUser);
-
-          // Set up a more frequent refresh interval (every 15 minutes)
-          // This ensures we're well ahead of the 1-hour expiration
+          // We don't need to immediately refresh the token if we just got it
+          // Only set up the refresh interval
+          
+          // Set up a refresh interval (every 45 minutes)
+          // This ensures we're still ahead of the 1-hour expiration but reduces API calls
           tokenRefreshInterval = setInterval(() => {
             console.log('Token refresh interval triggered');
             refreshToken(firebaseUser).then(success => {
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.warn('Scheduled token refresh failed, will retry on next interval');
               }
             });
-          }, 15 * 60 * 1000); // 15 minutes
+          }, 45 * 60 * 1000); // 45 minutes
 
           console.log('Token refresh interval set up successfully');
 

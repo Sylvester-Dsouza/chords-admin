@@ -14,6 +14,8 @@ export interface Artist {
   bio?: string | null;
   imageUrl?: string | null;
   website?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   socialLinks?: SocialLinks | null;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +35,8 @@ export interface CreateArtistDto {
   bio?: string;
   imageUrl?: string;
   website?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   socialLinks?: SocialLinks;
   isFeatured?: boolean;
   isActive?: boolean;
@@ -43,6 +47,8 @@ export interface UpdateArtistDto {
   bio?: string;
   imageUrl?: string;
   website?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   socialLinks?: SocialLinks;
   isFeatured?: boolean;
   isActive?: boolean;

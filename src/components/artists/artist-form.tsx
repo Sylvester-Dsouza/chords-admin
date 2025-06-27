@@ -59,6 +59,8 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
       youtube: initialData?.socialLinks?.youtube || "",
     },
     imageUrl: initialData?.imageUrl || "",
+    metaTitle: initialData?.metaTitle || "",
+    metaDescription: initialData?.metaDescription || "",
     isFeatured: initialData?.isFeatured || false,
     isActive: initialData?.isActive !== undefined ? initialData.isActive : true,
   })
@@ -165,6 +167,8 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
         bio: formState.bio || undefined,
         imageUrl: imageUrl || undefined,
         website: formState.website || undefined,
+        metaTitle: formState.metaTitle || undefined,
+        metaDescription: formState.metaDescription || undefined,
         isFeatured: formState.isFeatured,
         isActive: formState.isActive,
         socialLinks: {
@@ -545,6 +549,41 @@ export default function ArtistForm({ mode, initialData, title }: ArtistFormProps
                     </Select>
                     <p className="text-sm text-muted-foreground">
                       Inactive artists are hidden from the app and only visible in the admin panel.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>SEO Settings</CardTitle>
+                  <CardDescription>
+                    Search engine optimization settings
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Meta Title</label>
+                    <Input
+                      placeholder="Custom meta title for SEO"
+                      value={formState.metaTitle}
+                      onChange={(e) => setFormState({...formState, metaTitle: e.target.value})}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Custom title for search engines. If left empty, a default will be generated.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Meta Description</label>
+                    <textarea
+                      placeholder="Custom meta description for SEO"
+                      className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={formState.metaDescription}
+                      onChange={(e) => setFormState({...formState, metaDescription: e.target.value})}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Custom description for search engines. If left empty, a default will be generated.
                     </p>
                   </div>
                 </CardContent>

@@ -43,6 +43,9 @@ export interface Song {
   // UI-specific properties (deprecated - use viewCount instead)
   views?: number;
   likes?: number;
+  // SEO fields
+  metaTitle?: string | null;
+  metaDescription?: string | null;
 }
 
 export interface CreateSongDto {
@@ -60,6 +63,8 @@ export interface CreateSongDto {
   capo?: number; // Capo position
   status?: 'DRAFT' | 'ACTIVE'; // Song status
   tags?: string[];
+  metaTitle?: string; // Custom meta title for SEO
+  metaDescription?: string; // Custom meta description for SEO
 }
 
 export interface UpdateSongDto {
@@ -77,6 +82,8 @@ export interface UpdateSongDto {
   capo?: number; // Capo position
   status?: 'DRAFT' | 'ACTIVE'; // Song status
   tags?: string[];
+  metaTitle?: string; // Custom meta title for SEO
+  metaDescription?: string; // Custom meta description for SEO
 }
 
 // Song service
@@ -205,6 +212,20 @@ const songService = {
     } catch (error) {
       console.error('Error in bulk tag update:', error);
       throw error;
+    }
+  },
+
+  // Check if a song exists by title
+  checkSongExists: async (title: string): Promise<boolean> => {
+    try {
+      console.log(`Checking if song with title "${title}" exists`);
+      const response = await apiClient.get<{exists: boolean}>(`/songs/exists?title=${encodeURIComponent(title)}`);
+      console.log('Song existence check result:', response.data.exists);
+      return response.data.exists;
+    } catch (error) {
+      console.error('Error checking song existence:', error);
+      // If there's an error, assume the song doesn't exist
+      return false;
     }
   }
 };

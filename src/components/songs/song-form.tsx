@@ -62,14 +62,49 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
     imageUrl: initialData?.imageUrl || "",
     officialVideoUrl: initialData?.officialVideoUrl || "",
     tutorialVideoUrl: initialData?.tutorialVideoUrl || "",
-    tags: initialData?.tags || []
+    tags: initialData?.tags || [],
+    metaTitle: initialData?.metaTitle || "",
+    metaDescription: initialData?.metaDescription || ""
   })
+  
+  // State for song existence check
+  const [songExists, setSongExists] = React.useState(false)
+  const [checkingTitle, setCheckingTitle] = React.useState(false)
 
   // State for the image file
   const [imageFile, setImageFile] = React.useState<File | null>(null)
 
   // State to track if an image needs to be deleted
   const [imageToDelete, setImageToDelete] = React.useState<string | null>(null)
+  
+  // Debounce function for title check
+  const debouncedTitleCheck = React.useCallback(
+    React.useCallback(
+      (title: string) => {
+        // Only check for song existence in create mode
+        if (!title || title.trim() === '') return
+        
+        // Don't check if we're in edit mode
+        if (mode !== 'create') return
+        
+        setCheckingTitle(true)
+        const timer = setTimeout(async () => {
+          try {
+            const exists = await songService.checkSongExists(title)
+            setSongExists(exists)
+          } catch (err) {
+            console.error('Error checking song existence:', err)
+          } finally {
+            setCheckingTitle(false)
+          }
+        }, 500) // 500ms debounce
+        
+        return () => clearTimeout(timer)
+      },
+      [mode]
+    ),
+    [mode]
+  )
 
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -194,6 +229,10 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
       if (!formState.chordSheet) {
         throw new Error("Chord sheet is required")
       }
+      // Check if song exists (for create mode only)
+      if (mode === 'create' && songExists) {
+        throw new Error("A song with this title already exists. Please choose a different title.")
+      }
 
       // Handle image operations (delete and upload)
       let imageUrl = formState.imageUrl;
@@ -256,6 +295,9 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
         imageUrl: imageUrl || undefined,
         officialVideoUrl: formState.officialVideoUrl || undefined,
         tutorialVideoUrl: formState.tutorialVideoUrl || undefined,
+        // SEO fields
+        metaTitle: formState.metaTitle || undefined,
+        metaDescription: formState.metaDescription || undefined,
         // Include tag names in the legacy tags field for backward compatibility
         tags: selectedTags.map(tagId => {
           const tag = availableTags.find(t => t.id === tagId);
@@ -430,12 +472,29 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Title</label>
-                    <Input
-                      placeholder="Enter song title"
-                      value={formState.title}
-                      onChange={(e) => setFormState({...formState, title: e.target.value})}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        placeholder="Enter song title"
+                        value={formState.title}
+                        onChange={(e) => {
+                          const newTitle = e.target.value
+                          setFormState({...formState, title: newTitle})
+                          debouncedTitleCheck(newTitle)
+                        }}
+                        className={songExists ? "border-red-500 pr-10" : ""}
+                        required
+                      />
+                      {checkingTitle && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin h-4 w-4 border-2 border-gray-500 rounded-full border-t-transparent"></div>
+                        </div>
+                      )}
+                    </div>
+                    {songExists && (
+                      <p className="text-sm text-red-500 mt-1">
+                        A song with this title already exists. Please choose a different title.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -762,6 +821,51 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                       <p className="text-xs text-muted-foreground">
                         Link to a tutorial video showing how to play the song
                       </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* SEO Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>SEO Settings</CardTitle>
+                    <CardDescription>
+                      Customize how this song appears in search engines
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Meta Title</label>
+                      <Input
+                        placeholder="Learn to play [Song Title] - Easy Guitar Chords"
+                        value={formState.metaTitle}
+                        onChange={(e) => setFormState({...formState, metaTitle: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Custom title for search engines. Leave blank to use default format.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Meta Description</label>
+                      <Input
+                        placeholder="Learn how to play [Song Title] with easy guitar chords..."
+                        value={formState.metaDescription}
+                        onChange={(e) => setFormState({...formState, metaDescription: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Custom description for search engines. Leave blank to use default format.
+                      </p>
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded-md">
+                      <p className="font-medium mb-1">SEO Tips:</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>Keep meta title under 60 characters</li>
+                        <li>Keep meta description under 160 characters</li>
+                        <li>Include relevant keywords naturally</li>
+                        <li>Make the content compelling to increase click-through rates</li>
+                      </ul>
                     </div>
                   </CardContent>
                 </Card>

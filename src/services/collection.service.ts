@@ -6,6 +6,8 @@ export interface Collection {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   songIds?: string[];
   songs?: {
     id: string;
@@ -33,6 +35,8 @@ export interface CreateCollectionDto {
   name: string;
   description?: string;
   imageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   isPublic?: boolean;
   isActive?: boolean;
 }
@@ -41,6 +45,8 @@ export interface UpdateCollectionDto {
   name?: string;
   description?: string;
   imageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   isPublic?: boolean;
   isActive?: boolean;
 }

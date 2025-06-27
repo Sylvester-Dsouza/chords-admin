@@ -17,11 +17,13 @@ console.log('API Client initialized with baseURL:', apiClient.defaults.baseURL);
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      // Log the request details for debugging
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
-        params: config.params,
-        data: config.data,
-      });
+      // Log the request details only in development environment
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+          params: config.params,
+          data: config.data,
+        });
+      }
 
       const auth = getAuth();
       const currentUser = auth.currentUser;
@@ -65,18 +67,25 @@ apiClient.interceptors.request.use(
 // Add a response interceptor to handle token expiration and log responses
 apiClient.interceptors.response.use(
   (response) => {
-    // Log successful responses
-    console.log(`API Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-      data: response.data,
-    });
+    // Log successful responses only in development environment
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`API Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+        data: response.data,
+      });
+    }
     return response;
   },
   async (error: AxiosError) => {
-    // Log error responses
-    console.error(`API Error: ${error.response?.status || 'Unknown'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
-      message: error.message,
-      response: error.response?.data,
-    });
+    // Log error responses with minimal information in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`API Error: ${error.response?.status || 'Unknown'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+    } else {
+      // Detailed logging in development
+      console.error(`API Error: ${error.response?.status || 'Unknown'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+        message: error.message,
+        response: error.response?.data,
+      });
+    }
 
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
