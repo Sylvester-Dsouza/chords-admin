@@ -22,6 +22,8 @@ import {
   IconPalette,
   IconBell,
   IconMicrophone,
+  IconBulb,
+  IconPhoto,
   IconCrown,
   IconHeadset,
   IconPlus,
@@ -282,6 +284,16 @@ const data = {
       name: "Song Requests",
       url: "/song-requests",
       icon: IconMicrophone,
+    },
+    {
+      name: "Feature Requests",
+      url: "/feature-requests",
+      icon: IconBulb,
+    },
+    {
+      name: "Media Library",
+      url: "/media",
+      icon: IconPhoto,
     },
   ],
 }
