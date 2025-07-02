@@ -46,6 +46,22 @@ export interface Song {
   // SEO fields
   metaTitle?: string | null;
   metaDescription?: string | null;
+  // Karaoke relationship
+  karaoke?: {
+    id: string;
+    songId: string;
+    fileUrl: string;
+    fileSize?: number | null;
+    duration?: number | null;
+    key?: string | null;
+    uploadedBy?: string | null;
+    uploadedAt: Date;
+    updatedAt: Date;
+    version: number;
+    status: string;
+    quality?: string | null;
+    notes?: string | null;
+  } | null;
 }
 
 export interface CreateSongDto {
@@ -126,6 +142,11 @@ const songService = {
 
   // Alias for getSongById to match naming convention used in content management
   getSong: async (id: string): Promise<Song> => {
+    return songService.getSongById(id);
+  },
+
+  // Another alias for backward compatibility
+  getById: async (id: string): Promise<Song> => {
     return songService.getSongById(id);
   },
 

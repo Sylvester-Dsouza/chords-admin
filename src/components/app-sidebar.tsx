@@ -80,6 +80,11 @@ const data = {
           url: "/languages",
           icon: IconBrandChrome,
         },
+        {
+          title: "Karaoke",
+          url: "/karaoke",
+          icon: IconMusic,
+        },
       ],
     },
     {
