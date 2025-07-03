@@ -285,7 +285,7 @@ export default function HomeSectionsPage() {
       // Ensure itemCount is a valid integer
       const dataToSubmit = {
         ...formData,
-        itemCount: (formData.type === SectionType.BANNER || formData.type === SectionType.SONG_LIST) ? 0 :
+        itemCount: formData.type === SectionType.BANNER ? 0 :
                   (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
       };
 
@@ -317,7 +317,7 @@ export default function HomeSectionsPage() {
       // Ensure itemCount is a valid integer
       const dataToSubmit = {
         ...formData,
-        itemCount: (formData.type === SectionType.BANNER || formData.type === SectionType.SONG_LIST) ? 0 :
+        itemCount: formData.type === SectionType.BANNER ? 0 :
                   (typeof formData.itemCount === 'number' ? formData.itemCount : 10)
       };
 
@@ -664,7 +664,7 @@ export default function HomeSectionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.type !== SectionType.BANNER && formData.type !== SectionType.SONG_LIST && (
+            {formData.type !== SectionType.BANNER && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="itemCount" className="text-right">
                   Item Count
@@ -762,7 +762,7 @@ export default function HomeSectionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.type !== SectionType.BANNER && formData.type !== SectionType.SONG_LIST && (
+            {formData.type !== SectionType.BANNER && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-itemCount" className="text-right">
                   Item Count

@@ -154,12 +154,20 @@ export default function ManageCollectionSectionPage() {
         setSection(sectionData)
         setSelectedCollectionIds(sectionData.itemIds || [])
 
-        // Load collections
+        // Load collections in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
           const loadedCollections = await Promise.all(
             sectionData.itemIds.map(id => collectionService.getCollection(id))
           )
-          setCollections(loadedCollections.filter(collection => collection !== null))
+          // Filter out null collections but preserve order
+          const validCollections = loadedCollections.filter(collection => collection !== null)
+          // Sort collections to match the itemIds order
+          validCollections.sort((a, b) => {
+            const indexA = sectionData.itemIds!.indexOf(a.id)
+            const indexB = sectionData.itemIds!.indexOf(b.id)
+            return indexA - indexB
+          })
+          setCollections(validCollections)
         }
       } catch (error) {
         console.error("Error loading section:", error)
@@ -261,7 +269,15 @@ export default function ManageCollectionSectionPage() {
         const loadedCollections = await Promise.all(
           (updatedSection.itemIds || []).map(id => collectionService.getCollection(id))
         )
-        setCollections(loadedCollections.filter(collection => collection !== null))
+        // Filter out null collections but preserve order
+        const validCollections = loadedCollections.filter(collection => collection !== null)
+        // Sort collections to match the itemIds order
+        validCollections.sort((a, b) => {
+          const indexA = (updatedSection.itemIds || []).indexOf(a.id)
+          const indexB = (updatedSection.itemIds || []).indexOf(b.id)
+          return indexA - indexB
+        })
+        setCollections(validCollections)
       } else if (updatedCollectionIds.length === 0) {
         setCollections([])
       }

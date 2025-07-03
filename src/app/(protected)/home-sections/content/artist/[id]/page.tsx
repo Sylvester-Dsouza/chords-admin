@@ -151,12 +151,20 @@ export default function ManageArtistSectionPage() {
         setSection(sectionData)
         setSelectedArtistIds(sectionData.itemIds || [])
 
-        // Load artists
+        // Load artists in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
           const loadedArtists = await Promise.all(
             sectionData.itemIds.map(id => artistService.getArtist(id))
           )
-          setArtists(loadedArtists.filter(artist => artist !== null))
+          // Filter out null artists but preserve order
+          const validArtists = loadedArtists.filter(artist => artist !== null)
+          // Sort artists to match the itemIds order
+          validArtists.sort((a, b) => {
+            const indexA = sectionData.itemIds!.indexOf(a.id)
+            const indexB = sectionData.itemIds!.indexOf(b.id)
+            return indexA - indexB
+          })
+          setArtists(validArtists)
         }
       } catch (error) {
         console.error("Error loading section:", error)
@@ -258,7 +266,15 @@ export default function ManageArtistSectionPage() {
         const loadedArtists = await Promise.all(
           (updatedSection.itemIds || []).map(id => artistService.getArtist(id))
         )
-        setArtists(loadedArtists.filter(artist => artist !== null))
+        // Filter out null artists but preserve order
+        const validArtists = loadedArtists.filter(artist => artist !== null)
+        // Sort artists to match the itemIds order
+        validArtists.sort((a, b) => {
+          const indexA = (updatedSection.itemIds || []).indexOf(a.id)
+          const indexB = (updatedSection.itemIds || []).indexOf(b.id)
+          return indexA - indexB
+        })
+        setArtists(validArtists)
       } else if (updatedArtistIds.length === 0) {
         setArtists([])
       }

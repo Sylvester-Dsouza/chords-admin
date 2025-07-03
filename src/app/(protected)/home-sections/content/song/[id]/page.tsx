@@ -154,12 +154,20 @@ export default function ManageSongSectionPage() {
         setSection(sectionData)
         setSelectedSongIds(sectionData.itemIds || [])
 
-        // Load songs
+        // Load songs in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
           const loadedSongs = await Promise.all(
             sectionData.itemIds.map(id => songService.getSong(id))
           )
-          setSongs(loadedSongs.filter(song => song !== null))
+          // Filter out null songs but preserve order
+          const validSongs = loadedSongs.filter(song => song !== null)
+          // Sort songs to match the itemIds order
+          validSongs.sort((a, b) => {
+            const indexA = sectionData.itemIds!.indexOf(a.id)
+            const indexB = sectionData.itemIds!.indexOf(b.id)
+            return indexA - indexB
+          })
+          setSongs(validSongs)
         }
       } catch (error) {
         console.error("Error loading section:", error)
@@ -262,7 +270,15 @@ export default function ManageSongSectionPage() {
         const loadedSongs = await Promise.all(
           (updatedSection.itemIds || []).map(id => songService.getSong(id))
         )
-        setSongs(loadedSongs.filter(song => song !== null))
+        // Filter out null songs but preserve order
+        const validSongs = loadedSongs.filter(song => song !== null)
+        // Sort songs to match the itemIds order
+        validSongs.sort((a, b) => {
+          const indexA = (updatedSection.itemIds || []).indexOf(a.id)
+          const indexB = (updatedSection.itemIds || []).indexOf(b.id)
+          return indexA - indexB
+        })
+        setSongs(validSongs)
       } else if (updatedSongIds.length === 0) {
         setSongs([])
       }
