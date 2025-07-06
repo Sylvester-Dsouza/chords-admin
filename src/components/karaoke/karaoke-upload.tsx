@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Music, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Music, X, CheckCircle, AlertCircle, Layers } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MultiTrackUpload from './multi-track-upload';
 
 interface KaraokeUploadProps {
   songId: string;
@@ -215,8 +217,22 @@ export function KaraokeUpload({
           </div>
         )}
 
-        {/* Upload Form */}
-        <div className="space-y-4">
+        {/* Upload Options */}
+        <Tabs defaultValue="single" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="single" className="flex items-center gap-2">
+              <Music className="h-4 w-4" />
+              Single Track
+            </TabsTrigger>
+            <TabsTrigger value="multi" className="flex items-center gap-2">
+              <Layers className="h-4 w-4" />
+              Multi-Track
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="single" className="space-y-4 mt-4">
+            {/* Single Track Upload Form */}
+            <div className="space-y-4">
           <div>
             <Label htmlFor="karaoke-file">Karaoke Audio File</Label>
             <div className="mt-1">
@@ -300,24 +316,41 @@ export function KaraokeUpload({
             </div>
           )}
 
-          <Button
-            onClick={handleUpload}
-            disabled={!file || isUploading}
-            className="w-full"
-          >
-            {isUploading ? (
-              <>
-                <Upload className="mr-2 h-4 w-4 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Karaoke
-              </>
-            )}
-          </Button>
-        </div>
+              <Button
+                onClick={handleUpload}
+                disabled={!file || isUploading}
+                className="w-full"
+              >
+                {isUploading ? (
+                  <>
+                    <Upload className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Karaoke
+                  </>
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="multi" className="mt-4">
+            {/* Multi-Track Upload */}
+            <MultiTrackUpload
+              songId={songId}
+              onSuccess={() => {
+                onUploadSuccess?.();
+                setSuccess('Multi-track karaoke uploaded successfully!');
+                setError(null);
+              }}
+              onCancel={() => {
+                // Handle cancel if needed
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

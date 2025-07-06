@@ -1,5 +1,21 @@
 import apiClient from './api-client';
 
+export interface KaraokeTrack {
+  id: string;
+  karaokeId: string;
+  trackType: 'VOCALS' | 'BASS' | 'DRUMS' | 'OTHER';
+  fileUrl: string;
+  fileSize?: number | null;
+  duration?: number | null;
+  volume: number;
+  isMuted: boolean;
+  uploadedAt: Date;
+  updatedAt: Date;
+  quality?: string | null;
+  notes?: string | null;
+  status: string;
+}
+
 export interface KaraokeSong {
   id: string;
   title: string;
@@ -17,6 +33,7 @@ export interface KaraokeSong {
   averageRating: number;
   ratingCount: number;
   createdAt: Date;
+  tracks?: KaraokeTrack[];
 }
 
 export interface KaraokeStats {

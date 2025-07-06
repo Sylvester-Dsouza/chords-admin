@@ -61,6 +61,16 @@ export interface Song {
     status: string;
     quality?: string | null;
     notes?: string | null;
+    tracks?: {
+      id: string;
+      trackType: string;
+      fileUrl: string;
+      fileSize?: number | null;
+      duration?: number | null;
+      volume: number;
+      isMuted: boolean;
+      status: string;
+    }[];
   } | null;
 }
 
@@ -124,6 +134,62 @@ const songService = {
     } catch (error) {
       console.error('Error fetching songs:', error);
       throw error;
+    }
+  },
+
+  // Get songs with pagination and karaoke data
+  getSongs: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    includeKaraoke?: boolean;
+  }): Promise<{ songs: Song[]; total: number; page: number; limit: number }> => {
+    try {
+      let url = '/songs';
+      const queryParams = new URLSearchParams();
+
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.includeKaraoke) queryParams.append('includeKaraoke', 'true');
+
+      const queryString = queryParams.toString();
+      if (queryString) url += `?${queryString}`;
+
+      console.log('Fetching songs with pagination from:', url);
+      const response = await apiClient.get(url);
+      console.log('Songs fetched successfully:', response.data);
+
+      // Handle different response formats
+      if (Array.isArray(response.data)) {
+        // If response is directly an array
+        return {
+          songs: response.data,
+          total: response.data.length,
+          page: params?.page || 1,
+          limit: params?.limit || response.data.length
+        };
+      } else if (response.data && Array.isArray(response.data.songs)) {
+        // If response has songs property
+        return response.data;
+      } else {
+        // Fallback to empty array
+        return {
+          songs: [],
+          total: 0,
+          page: params?.page || 1,
+          limit: params?.limit || 0
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching songs with pagination:', error);
+      // Return empty result on error instead of throwing
+      return {
+        songs: [],
+        total: 0,
+        page: params?.page || 1,
+        limit: params?.limit || 0
+      };
     }
   },
 
