@@ -156,17 +156,38 @@ export default function ManageSongSectionPage() {
 
         // Load songs in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
-          const loadedSongs = await Promise.all(
-            sectionData.itemIds.map(id => songService.getSong(id))
-          )
-          // Filter out null songs but preserve order
-          const validSongs = loadedSongs.filter(song => song !== null)
-          // Sort songs to match the itemIds order
-          validSongs.sort((a, b) => {
-            const indexA = sectionData.itemIds!.indexOf(a.id)
-            const indexB = sectionData.itemIds!.indexOf(b.id)
-            return indexA - indexB
-          })
+          // Load songs individually to handle 404 errors gracefully
+          const validSongs: Song[] = []
+          const validSongIds: string[] = []
+          
+          for (const id of sectionData.itemIds) {
+            try {
+              const song = await songService.getSong(id)
+              if (song) {
+                validSongs.push(song)
+                validSongIds.push(id)
+              }
+            } catch (error) {
+              console.warn(`Song with ID ${id} not found or error loading:`, error)
+              // Skip this song and continue with others
+            }
+          }
+          
+          // Update the section with only valid song IDs
+          if (validSongIds.length !== sectionData.itemIds.length) {
+            try {
+              // Update section to remove invalid song IDs
+              await homeSectionService.updateSection(sectionData.id, {
+                itemIds: validSongIds
+              })
+              // Update local state with valid IDs
+              setSelectedSongIds(validSongIds)
+            } catch (updateError) {
+              console.error("Error updating section with valid song IDs:", updateError)
+              // Continue anyway with the valid songs we found
+            }
+          }
+          
           setSongs(validSongs)
         }
       } catch (error) {
@@ -180,14 +201,16 @@ export default function ManageSongSectionPage() {
     loadSectionAndContent()
   }, [sectionId, router])
 
-  // Load all songs
+  // Load all active songs (excluding drafts)
   useEffect(() => {
     const loadAllSongs = async () => {
       setLoadingAllSongs(true)
       try {
+        // Get all songs and filter to only include active songs
         const allSongsData = await songService.getAllSongs()
-        setAllSongs(allSongsData)
-        setFilteredSongs(allSongsData)
+        const activeSongsOnly = allSongsData.filter(song => song.status === 'ACTIVE')
+        setAllSongs(activeSongsOnly)
+        setFilteredSongs(activeSongsOnly)
       } catch (error) {
         console.error("Error loading all songs:", error)
         toast.error("Failed to load songs. Please try again.")

@@ -54,6 +54,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 import homeSectionService, { HomeSection, SectionType } from "@/services/home-section.service"
 import collectionService, { Collection } from "@/services/collection.service"
+import apiClient from "@/services/api-client"
 
 // Sortable table row component
 interface SortableRowProps {
@@ -156,17 +157,38 @@ export default function ManageCollectionSectionPage() {
 
         // Load collections in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
-          const loadedCollections = await Promise.all(
-            sectionData.itemIds.map(id => collectionService.getCollection(id))
-          )
-          // Filter out null collections but preserve order
-          const validCollections = loadedCollections.filter(collection => collection !== null)
-          // Sort collections to match the itemIds order
-          validCollections.sort((a, b) => {
-            const indexA = sectionData.itemIds!.indexOf(a.id)
-            const indexB = sectionData.itemIds!.indexOf(b.id)
-            return indexA - indexB
-          })
+          // Load collections individually to handle 404 errors gracefully
+          const validCollections: Collection[] = []
+          const validCollectionIds: string[] = []
+          
+          for (const id of sectionData.itemIds) {
+            try {
+              const collection = await collectionService.getCollection(id)
+              if (collection) {
+                validCollections.push(collection)
+                validCollectionIds.push(id)
+              }
+            } catch (error) {
+              console.warn(`Collection with ID ${id} not found or error loading:`, error)
+              // Skip this collection and continue with others
+            }
+          }
+          
+          // Update the section with only valid collection IDs
+          if (validCollectionIds.length !== sectionData.itemIds.length) {
+            try {
+              // Update section to remove invalid collection IDs
+              await homeSectionService.updateSection(sectionData.id, {
+                itemIds: validCollectionIds
+              })
+              // Update local state with valid IDs
+              setSelectedCollectionIds(validCollectionIds)
+            } catch (updateError) {
+              console.error("Error updating section with valid collection IDs:", updateError)
+              // Continue anyway with the valid collections we found
+            }
+          }
+          
           setCollections(validCollections)
         }
       } catch (error) {
@@ -185,9 +207,16 @@ export default function ManageCollectionSectionPage() {
     const loadAllCollections = async () => {
       setLoadingAllCollections(true)
       try {
+        // Get all collections
         const allCollectionsData = await collectionService.getAllCollections()
+        
+        // For now, show all collections without filtering
+        // This is more efficient and ensures collections are visible
         setAllCollections(allCollectionsData)
         setFilteredCollections(allCollectionsData)
+        
+        // If we need to filter by active songs in the future, we can implement a more efficient approach
+        // such as a batch API call to check multiple collections at once
       } catch (error) {
         console.error("Error loading all collections:", error)
         toast.error("Failed to load collections. Please try again.")

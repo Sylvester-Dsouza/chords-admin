@@ -54,6 +54,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 import homeSectionService, { HomeSection, SectionType } from "@/services/home-section.service"
 import artistService, { Artist } from "@/services/artist.service"
+import apiClient from "@/services/api-client"
 
 // Sortable table row component
 interface SortableRowProps {
@@ -153,17 +154,38 @@ export default function ManageArtistSectionPage() {
 
         // Load artists in the correct order
         if (sectionData.itemIds && sectionData.itemIds.length > 0) {
-          const loadedArtists = await Promise.all(
-            sectionData.itemIds.map(id => artistService.getArtist(id))
-          )
-          // Filter out null artists but preserve order
-          const validArtists = loadedArtists.filter(artist => artist !== null)
-          // Sort artists to match the itemIds order
-          validArtists.sort((a, b) => {
-            const indexA = sectionData.itemIds!.indexOf(a.id)
-            const indexB = sectionData.itemIds!.indexOf(b.id)
-            return indexA - indexB
-          })
+          // Load artists individually to handle 404 errors gracefully
+          const validArtists: Artist[] = []
+          const validArtistIds: string[] = []
+          
+          for (const id of sectionData.itemIds) {
+            try {
+              const artist = await artistService.getArtist(id)
+              if (artist) {
+                validArtists.push(artist)
+                validArtistIds.push(id)
+              }
+            } catch (error) {
+              console.warn(`Artist with ID ${id} not found or error loading:`, error)
+              // Skip this artist and continue with others
+            }
+          }
+          
+          // Update the section with only valid artist IDs
+          if (validArtistIds.length !== sectionData.itemIds.length) {
+            try {
+              // Update section to remove invalid artist IDs
+              await homeSectionService.updateSection(sectionData.id, {
+                itemIds: validArtistIds
+              })
+              // Update local state with valid IDs
+              setSelectedArtistIds(validArtistIds)
+            } catch (updateError) {
+              console.error("Error updating section with valid artist IDs:", updateError)
+              // Continue anyway with the valid artists we found
+            }
+          }
+          
           setArtists(validArtists)
         }
       } catch (error) {
@@ -182,9 +204,16 @@ export default function ManageArtistSectionPage() {
     const loadAllArtists = async () => {
       setLoadingAllArtists(true)
       try {
+        // Get all artists
         const allArtistsData = await artistService.getAllArtists()
+        
+        // For now, show all artists without filtering
+        // This is more efficient and ensures artists are visible
         setAllArtists(allArtistsData)
         setFilteredArtists(allArtistsData)
+        
+        // If we need to filter by active songs in the future, we can implement a more efficient approach
+        // such as a batch API call or server-side filtering
       } catch (error) {
         console.error("Error loading all artists:", error)
         toast.error("Failed to load artists. Please try again.")
