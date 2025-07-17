@@ -13,6 +13,7 @@ import { ChordPreview } from "./chord-formatter"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { STORAGE_FOLDERS, uploadImage, deleteImage } from "@/lib/image-upload"
 import { KaraokeUpload } from "@/components/karaoke/karaoke-upload"
+import MultiTrackUpload from "@/components/karaoke/multi-track-upload"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { ArtistCombobox } from "@/components/artists/artist-combobox"
 import { KeyCombobox } from "@/components/songs/key-combobox"
 // Removed unused Tabs imports
@@ -836,49 +843,59 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
 
                 {/* Karaoke Card */}
                 {formState.id ? (
-                  <KaraokeUpload
-                    songId={formState.id}
-                    songTitle={formState.title}
-                    artistName={artists.find(a => a.id === formState.artistId)?.name || 'Unknown Artist'}
-                    currentKaraoke={{
-                      hasKaraoke: formState.hasKaraoke || false,
-                      karaokeFileUrl: formState.karaokeFileUrl,
-                      karaokeKey: formState.karaokeKey,
-                      karaokeDuration: formState.karaokeDuration ?? undefined,
-                    }}
-                    onUploadSuccess={() => {
-                      // Refresh song data to get updated karaoke info
-                      if (formState.id) {
-                        songService.getById(formState.id).then((song) => {
-                          setFormState(prev => ({
-                            ...prev,
-                            hasKaraoke: !!song.karaoke,
-                            karaokeFileUrl: song.karaoke?.fileUrl || "",
-                            karaokeKey: song.karaoke?.key || "",
-                            karaokeDuration: song.karaoke?.duration || null,
-                            karaokeUploadedAt: song.karaoke?.uploadedAt || null,
-                          }));
-                        });
-                      }
-                    }}
-                    onRemoveSuccess={() => {
-                      // Update form state to reflect karaoke removal
-                      setFormState(prev => ({
-                        ...prev,
-                        hasKaraoke: false,
-                        karaokeFileUrl: "",
-                        karaokeKey: "",
-                        karaokeDuration: null,
-                        karaokeUploadedAt: null,
-                      }));
-                    }}
-                  />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <IconMusic className="h-5 w-5" />
+                        Multi-Track Karaoke
+                      </CardTitle>
+                      <CardDescription>
+                        Upload multiple karaoke tracks for this song
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Direct integration of MultiTrackUpload component */}
+                      <MultiTrackUpload
+                        songId={formState.id}
+                        onSuccess={() => {
+                          // Refresh song data to get updated karaoke info with tracks
+                          if (formState.id) {
+                            songService.getById(formState.id).then((song) => {
+                              console.log('Updated song with karaoke tracks:', song.karaoke?.tracks);
+                              setFormState(prev => ({
+                                ...prev,
+                                hasKaraoke: !!song.karaoke,
+                                karaokeFileUrl: song.karaoke?.fileUrl || "",
+                                karaokeKey: song.karaoke?.key || "",
+                                karaokeDuration: song.karaoke?.duration || null,
+                                karaokeUploadedAt: song.karaoke?.uploadedAt || null,
+                              }));
+                              
+                              // Display track count in success message
+                              const trackCount = song.karaoke?.tracks?.length || 0;
+                              if (trackCount > 0) {
+                                toast.success(`Multi-track karaoke uploaded successfully! ${trackCount} tracks added.`);
+                              } else {
+                                toast.success("Multi-track karaoke uploaded successfully!");
+                              }
+                            }).catch(error => {
+                              console.error('Error fetching updated song data:', error);
+                              toast.error('Failed to refresh song data. Please refresh the page to see uploaded tracks.');
+                            });
+                          }
+                        }}
+                        onCancel={() => {
+                          // Handle cancel if needed
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
                 ) : (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <IconMusic className="h-5 w-5" />
-                        Karaoke Track
+                        Multi-Track Karaoke
                       </CardTitle>
                       <CardDescription>
                         Save the song first to add karaoke tracks
@@ -887,7 +904,7 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                     <CardContent>
                       <div className="text-center py-8 text-muted-foreground">
                         <IconMusic className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                        <p>Karaoke upload will be available after saving the song</p>
+                        <p>Multi-track karaoke upload will be available after saving the song</p>
                       </div>
                     </CardContent>
                   </Card>

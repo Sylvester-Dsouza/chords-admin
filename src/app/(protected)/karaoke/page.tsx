@@ -17,24 +17,8 @@ import songService, { Song } from '@/services/song.service'
 import { formatDuration, formatFileSize } from '@/lib/utils'
 import MultiTrackUpload from '@/components/karaoke/multi-track-upload'
 
-interface SongWithKaraoke extends Song {
-  karaoke?: {
-    id: string
-    fileUrl: string
-    fileSize?: number
-    duration?: number
-    key?: string
-    quality?: string
-    status: string
-    tracks?: Array<{
-      id: string
-      trackType: string
-      fileUrl: string
-      fileSize?: number
-      status: string
-    }>
-  }
-}
+// Use the Song interface from the song service but with a more specific karaoke type
+type SongWithKaraoke = Song
 
 export default function KaraokePage() {
   const [songs, setSongs] = useState<SongWithKaraoke[]>([])
@@ -79,7 +63,7 @@ export default function KaraokePage() {
       return
     }
 
-    let filtered = songs
+    let filtered = [...songs]
 
     // Search filter
     if (searchTerm) {
@@ -128,11 +112,12 @@ export default function KaraokePage() {
     return `Multi-Track (${trackCount})`
   }
 
-  const getKaraokeStatusColor = (song: SongWithKaraoke) => {
+  const getKaraokeStatusColor = (song: SongWithKaraoke): "default" | "destructive" | "outline" | "secondary" => {
     if (!song.karaoke || song.karaoke.status !== 'ACTIVE') return 'secondary'
     const trackCount = song.karaoke.tracks?.length || 0
     if (trackCount === 0) return 'default'
-    return 'success'
+    // Changed from 'success' to 'default' as 'success' is not a valid Badge variant
+    return 'default'
   }
 
   const handleEditKaraoke = (song: SongWithKaraoke) => {
@@ -140,11 +125,47 @@ export default function KaraokePage() {
     setShowUploadDialog(true)
   }
 
-  const handleUploadSuccess = () => {
-    setShowUploadDialog(false)
-    setSelectedSong(null)
-    fetchSongs()
-    toast.success('Karaoke updated successfully!')
+  const handleUploadSuccess = async () => {
+    try {
+      // First fetch the updated song data
+      if (selectedSong) {
+        const updatedSong = await songService.getSongById(selectedSong.id)
+        
+        console.log('Fetched updated song with karaoke data:', updatedSong.karaoke)
+        
+        // Update the song in the songs array
+        setSongs(prevSongs => 
+          prevSongs.map(song => 
+            song.id === updatedSong.id ? {...updatedSong} : song
+          )
+        )
+        
+        // Also update in filtered songs
+        setFilteredSongs(prevSongs => 
+          prevSongs.map(song => 
+            song.id === updatedSong.id ? {...updatedSong} : song
+          )
+        )
+        
+        // Show success message with track count if available
+        const trackCount = updatedSong.karaoke?.tracks?.length || 0
+        if (trackCount > 0) {
+          toast.success(`Karaoke updated successfully! ${trackCount} tracks available.`)
+        } else {
+          toast.success('Karaoke updated successfully!')
+        }
+      } else {
+        toast.success('Karaoke updated successfully!')
+      }
+      
+      setShowUploadDialog(false)
+      setSelectedSong(null)
+    } catch (error) {
+      console.error('Error updating song data:', error)
+      toast.error('Karaoke was uploaded but failed to refresh data')
+      // Fallback to full refresh
+      fetchSongs()
+    }
   }
 
   if (loading) {
@@ -295,7 +316,7 @@ export default function KaraokePage() {
                           </Badge>
                           {song.karaoke?.tracks && song.karaoke.tracks.length > 0 && (
                             <div className="flex items-center gap-1 mt-1">
-                              {song.karaoke.tracks.map((track) => (
+                              {song.karaoke.tracks?.map((track) => (
                                 <Badge
                                   key={track.id}
                                   variant="outline"

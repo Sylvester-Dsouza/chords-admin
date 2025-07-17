@@ -1,0 +1,21 @@
+/* Custom audio player styles for dark mode */
+.audio-player-dark {
+  filter: invert(0.85);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Adjust audio player for light mode */
+.light .audio-player-dark {
+  filter: invert(0);
+}
+
+/* Improve audio player controls */
+audio::-webkit-media-controls-panel {
+  background-color: #1e1e2e;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-volume-slider {
+  filter: brightness(1.2);
+}
