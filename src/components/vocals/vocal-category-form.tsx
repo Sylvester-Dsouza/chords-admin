@@ -131,7 +131,7 @@ export default function VocalCategoryForm({
           await vocalService.updateCategory(categoryId, updateData)
           toast.success('Category updated successfully')
         }
-        router.push('/vocals')
+        router.push('/vocal-categories')
       }
     } catch (error) {
       console.error('Error saving category:', error)

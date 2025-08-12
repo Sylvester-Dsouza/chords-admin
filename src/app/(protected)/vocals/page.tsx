@@ -8,27 +8,16 @@ import {
   IconEdit,
   IconTrash,
   IconMusic,
-  IconMicrophone,
+  IconSearch,
+  IconFilter,
   IconEye,
-  IconGripVertical,
+  IconDotsVertical,
+  IconAlertCircle,
+  IconFileMusic,
+  IconClock,
+  IconDatabase,
+  IconTag,
 } from "@tabler/icons-react"
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -37,9 +26,40 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,226 +71,217 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
-import vocalService, { VocalCategory, VocalType } from "@/services/vocal.service"
+import vocalService, { 
+  VocalItem, 
+  VocalCategory, 
+  VocalLibrary, 
+  CreateVocalItemDto,
+  UpdateVocalItemDto,
+  VocalType 
+} from "@/services/vocal.service"
 
 export default function VocalsPage() {
   const router = useRouter()
+  const [items, setItems] = React.useState<VocalItem[]>([])
   const [categories, setCategories] = React.useState<VocalCategory[]>([])
+  const [audioFiles, setAudioFiles] = React.useState<VocalLibrary[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [activeTab, setActiveTab] = React.useState<string>("all")
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [categoryFilter, setCategoryFilter] = React.useState("all")
+  const [statusFilter, setStatusFilter] = React.useState("all")
+  
+  // Modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [editingItem, setEditingItem] = React.useState<VocalItem | null>(null)
+  const [formData, setFormData] = React.useState<CreateVocalItemDto>({
+    categoryId: undefined,
+    audioFileId: "",
+    name: "",
+    displayOrder: 0,
+    isActive: true,
+  })
+  
+  // Upload states
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
+  const [uploading, setUploading] = React.useState(false)
 
-  // Fetch categories
-  const fetchCategories = React.useCallback(async () => {
+  // Fetch data
+  const fetchData = React.useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await vocalService.getAllCategories()
-      setCategories(data)
+      
+      const [categoriesData, audioFilesData] = await Promise.all([
+        vocalService.getAllCategories(),
+        vocalService.getAllAudioFiles(true), // Only active audio files
+      ])
+      
+      setCategories(categoriesData)
+      setAudioFiles(audioFilesData)
+      // Use audioFiles as items since we removed VocalItem model
+      setItems(audioFilesData.map(audioFile => ({
+        id: audioFile.id,
+        categoryId: audioFile.categoryId,
+        audioFileId: audioFile.id,
+        name: audioFile.name,
+        displayOrder: audioFile.displayOrder,
+        isActive: audioFile.isActive,
+        createdAt: new Date(audioFile.createdAt),
+        updatedAt: new Date(audioFile.updatedAt),
+        audioFile: audioFile
+      })))
     } catch (err) {
-      console.error('Error fetching vocal categories:', err)
-      setError('Failed to load vocal categories. Please try again.')
+      console.error('Error fetching data:', err)
+      setError('Failed to load data. Please try again.')
     } finally {
       setLoading(false)
     }
   }, [])
 
   React.useEffect(() => {
-    fetchCategories()
-  }, [fetchCategories])
+    fetchData()
+  }, [fetchData])
 
-  // Delete category
+  // Filter items
+  const filteredItems = items.filter((item) => {
+    const itemName = item.name || item.audioFile?.name || ""
+    const audioFileName = item.audioFile?.fileName || ""
+    const categoryName = item.categoryId ? (categories.find(c => c.id === item.categoryId)?.name || "") : "No Category"
+    
+    const matchesSearch =
+      itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      audioFileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesCategory =
+      categoryFilter === "all" || 
+      (categoryFilter === "none" && !item.categoryId) ||
+      item.categoryId === categoryFilter
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && item.isActive) ||
+      (statusFilter === "inactive" && !item.isActive)
+
+    return matchesSearch && matchesCategory && matchesStatus
+  })
+
+  // Handle create item
+  const handleCreate = async () => {
+    try {
+      if (!selectedFile) {
+        toast.error("Please select a file to upload")
+        return
+      }
+
+      setUploading(true)
+      
+      try {
+        // Upload directly to VocalLibrary with category assignment
+        const uploadData = {
+          name: selectedFile.name.replace(/\.[^/.]+$/, ''),
+          categoryId: formData.categoryId || null,
+          displayOrder: formData.displayOrder || 0,
+        }
+        
+        const uploadedAudioFile = await vocalService.uploadAudioFile(selectedFile, uploadData)
+        toast.success("Vocal library item created successfully")
+      } catch (uploadError) {
+        console.error('Error uploading audio file:', uploadError)
+        toast.error('Failed to upload audio file')
+        return
+      } finally {
+        setUploading(false)
+      }
+      setIsCreateModalOpen(false)
+      resetForm()
+      fetchData()
+    } catch (error) {
+      console.error('Error creating vocal item:', error)
+      toast.error('Failed to create vocal item')
+    }
+  }
+
+  // Handle edit item
+  const handleEdit = async () => {
+    try {
+      if (!editingItem) return
+
+      const updateData: UpdateVocalItemDto = {
+        categoryId: formData.categoryId,
+        audioFileId: formData.audioFileId,
+        name: formData.name || undefined,
+        displayOrder: formData.displayOrder,
+        isActive: formData.isActive,
+      }
+
+      await vocalService.updateItem(editingItem.id, updateData)
+      toast.success("Vocal item updated successfully")
+      setIsEditModalOpen(false)
+      setEditingItem(null)
+      resetForm()
+      fetchData()
+    } catch (error) {
+      console.error('Error updating vocal item:', error)
+      toast.error('Failed to update vocal item')
+    }
+  }
+
+  // Handle delete item
   const handleDelete = async (id: string, name: string) => {
     try {
-      await vocalService.deleteCategory(id)
-      toast.success(`Category "${name}" deleted successfully`)
-      fetchCategories()
+      await vocalService.deleteItem(id)
+      toast.success(`Vocal item "${name}" deleted successfully`)
+      fetchData()
     } catch (error) {
-      console.error('Error deleting category:', error)
-      toast.error('Failed to delete category. Make sure it has no items.')
+      console.error('Error deleting vocal item:', error)
+      toast.error('Failed to delete vocal item')
     }
   }
 
-  // Setup sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      categoryId: undefined,
+      audioFileId: "",
+      name: "",
+      displayOrder: 0,
+      isActive: true,
     })
-  )
-
-  // Handle drag end for reordering categories
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-
-    if (!over || active.id === over.id) {
-      return
-    }
-
-    const oldIndex = filteredCategories.findIndex(category => category.id === active.id)
-    const newIndex = filteredCategories.findIndex(category => category.id === over.id)
-
-    if (oldIndex === -1 || newIndex === -1) {
-      return
-    }
-
-    // Update local state immediately for better UX
-    const newCategories = arrayMove(filteredCategories, oldIndex, newIndex)
-
-    // Update the main categories array to maintain consistency
-    const updatedCategories = [...categories]
-    const categoryToMove = updatedCategories.find(cat => cat.id === active.id)
-    if (categoryToMove) {
-      const mainOldIndex = updatedCategories.findIndex(cat => cat.id === active.id)
-      const mainNewIndex = updatedCategories.findIndex(cat => cat.id === over.id)
-      if (mainOldIndex !== -1 && mainNewIndex !== -1) {
-        const reorderedCategories = arrayMove(updatedCategories, mainOldIndex, mainNewIndex)
-        setCategories(reorderedCategories)
-      }
-    }
-
-    try {
-      // Send reorder request to backend
-      const categoryIds = newCategories.map(category => category.id)
-      await vocalService.reorderCategories({ categoryIds })
-      toast.success('Categories reordered successfully')
-    } catch (error) {
-      console.error('Error reordering categories:', error)
-      toast.error('Failed to reorder categories. Please try again.')
-      // Revert the local state on error
-      fetchCategories()
-    }
+    setSelectedFile(null)
+    setUploading(false)
   }
 
-  // Filter categories by type
-  const filteredCategories = React.useMemo(() => {
-    if (activeTab === "all") return categories
-    return categories.filter(category => category.type === activeTab.toUpperCase())
-  }, [categories, activeTab])
-
-  // Get category type icon
-  const getCategoryIcon = (type: VocalType) => {
-    return type === VocalType.WARMUP ? IconMicrophone : IconMusic
+  // Open edit modal
+  const openEditModal = (item: VocalItem) => {
+    setEditingItem(item)
+    setFormData({
+      categoryId: item.categoryId || undefined,
+      audioFileId: item.audioFileId,
+      name: item.name || "",
+      displayOrder: item.displayOrder,
+      isActive: item.isActive,
+    })
+    setIsEditModalOpen(true)
   }
 
-  // Get category type color
-  const getCategoryTypeColor = (type: VocalType) => {
-    return type === VocalType.WARMUP ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+  // Format duration
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-  // Sortable Category Card Component
-  const SortableCategoryCard = ({ category }: { category: VocalCategory }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: category.id })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-    }
-
-    const IconComponent = getCategoryIcon(category.type)
-
-    return (
-      <Card
-        ref={setNodeRef}
-        style={style}
-        className={`transition-all duration-200 bg-card border-border ${
-          isDragging
-            ? 'opacity-50 shadow-lg scale-105 z-50'
-            : 'hover:shadow-md hover:scale-[1.02] hover:border-primary/20'
-        }`}
-      >
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-2">
-              <IconComponent className="h-5 w-5 text-gray-600" />
-              <div>
-                <CardTitle className="text-lg">{category.name}</CardTitle>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge className={getCategoryTypeColor(category.type)}>
-                    {category.type}
-                  </Badge>
-                  <Badge variant="outline">
-                    {category.itemCount || 0} items
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            <div
-              {...attributes}
-              {...listeners}
-              className="flex items-center space-x-1 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-accent/30 transition-colors"
-            >
-              <IconGripVertical className="h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {category.description && (
-            <CardDescription className="mb-4">
-              {category.description}
-            </CardDescription>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/vocals/categories/${category.id}`)}
-              >
-                <IconEye className="mr-1 h-3 w-3" />
-                View
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/vocals/categories/${category.id}/edit`)}
-              >
-                <IconEdit className="mr-1 h-3 w-3" />
-                Edit
-              </Button>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <IconTrash className="h-3 w-3" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete "{category.name}"?
-                    This action cannot be undone and will only work if the category has no items.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => handleDelete(category.id, category.name)}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardContent>
-      </Card>
-    )
+  // Format file size
+  const formatFileSize = (bytes: number) => {
+    const mb = bytes / (1024 * 1024)
+    return `${mb.toFixed(1)} MB`
   }
 
   if (loading) {
@@ -278,12 +289,9 @@ export default function VocalsPage() {
       <SidebarProvider>
         <AppSidebar variant="inset" />
         <SidebarInset>
-          <SiteHeader title="Vocal Management" />
+          <SiteHeader title="Vocal Items" />
           <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-600">Loading vocal categories...</p>
-            </div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -291,81 +299,418 @@ export default function VocalsPage() {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={{
+        "--sidebar-width": "calc(var(--spacing) * 72)",
+        "--header-height": "calc(var(--spacing) * 12)",
+      } as React.CSSProperties}
+    >
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader title="Vocal Management" />
+        <SiteHeader title="Vocal Items" />
         <div className="space-y-6 p-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Vocal Management</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Vocal Items</h1>
               <p className="text-muted-foreground">
-                Manage vocal warmups and exercises for your app
+                Manage vocal warmup and exercise items
               </p>
             </div>
-            <Button onClick={() => router.push('/vocals/categories/new')}>
-              <IconPlus className="mr-2 h-4 w-4" />
-              Add Category
-            </Button>
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <IconPlus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Vocal Item</DialogTitle>
+                  <DialogDescription>
+                    Create a new vocal item by selecting a category and audio file.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category (Optional)</Label>
+                      <Select
+                        value={formData.categoryId || "none"}
+                        onValueChange={(value) => setFormData({ ...formData, categoryId: value === "none" ? undefined : value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Category</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name} ({category.type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="audioFile">Audio File *</Label>
+                      <div>
+                        <Input
+                          type="file"
+                          accept="audio/*"
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        {selectedFile && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Custom Name (Optional)</Label>
+                    <Input
+                      id="name"
+                      placeholder="Override the audio file name..."
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="displayOrder">Display Order</Label>
+                      <Input
+                        id="displayOrder"
+                        type="number"
+                        value={formData.displayOrder}
+                        onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="isActive"
+                          checked={formData.isActive}
+                          onCheckedChange={(checked) => setFormData({ ...formData, isActive: !!checked })}
+                        />
+                        <Label htmlFor="isActive">Active</Label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={uploading}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreate} disabled={uploading}>
+                    {uploading ? "Uploading..." : "Create Item"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {error && (
             <Alert variant="destructive">
+              <IconAlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="all">All Categories</TabsTrigger>
-              <TabsTrigger value="warmup">Warmups</TabsTrigger>
-              <TabsTrigger value="exercise">Exercises</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value={activeTab} className="mt-6">
-              {filteredCategories.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <IconMicrophone className="h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No categories found
-                    </h3>
-                    <p className="text-gray-600 text-center mb-4">
-                      {activeTab === "all" 
-                        ? "Get started by creating your first vocal category."
-                        : `No ${activeTab} categories found. Create one to get started.`
-                      }
-                    </p>
-                    <Button onClick={() => router.push('/vocals/categories/new')}>
-                      <IconPlus className="mr-2 h-4 w-4" />
-                      Add Category
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={filteredCategories.map(category => category.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredCategories.map((category) => (
-                        <SortableCategoryCard key={category.id} category={category} />
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Filters</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search">Search</Label>
+                  <div className="relative">
+                    <IconSearch className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search"
+                      placeholder="Search items..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="none">No Category</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name} ({category.type})
+                        </SelectItem>
                       ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
-            </TabsContent>
-          </Tabs>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("")
+                      setCategoryFilter("all")
+                      setStatusFilter("all")
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Items Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Vocal Items ({filteredItems.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Audio File</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map((item) => {
+                    const category = categories.find(c => c.id === item.categoryId)
+                    const audioFile = item.audioFile
+                    const displayName = item.name || audioFile?.name || "Unnamed Item"
+                    
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <IconFileMusic className="h-4 w-4 text-muted-foreground" />
+                            {displayName}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {category ? (
+                            <Badge variant={category.type === VocalType.WARMUP ? "default" : "secondary"}>
+                              {category.name}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              No Category
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">{audioFile?.name}</div>
+                            <div className="text-xs text-muted-foreground">{audioFile?.fileName}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <IconClock className="h-3 w-3 text-muted-foreground" />
+                            {audioFile ? formatDuration(audioFile.durationSeconds) : "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <IconDatabase className="h-3 w-3 text-muted-foreground" />
+                            {audioFile ? formatFileSize(audioFile.fileSizeBytes) : "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.displayOrder}</TableCell>
+                        <TableCell>
+                          <Badge variant={item.isActive ? "default" : "secondary"}>
+                            {item.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <IconDotsVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditModal(item)}>
+                                <IconEdit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <IconTrash className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Vocal Item</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{displayName}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(item.id, displayName)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {filteredItems.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        No vocal items found. {searchQuery || categoryFilter !== "all" || statusFilter !== "all" 
+                          ? "Try adjusting your filters." 
+                          : "Create your first vocal item to get started."}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       </SidebarInset>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Vocal Item</DialogTitle>
+            <DialogDescription>
+              Update the vocal item details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Category (Optional)</Label>
+                <Select
+                  value={formData.categoryId || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, categoryId: value === "none" ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Category</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name} ({category.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-audioFile">Audio File *</Label>
+                <Select
+                  value={formData.audioFileId}
+                  onValueChange={(value) => setFormData({ ...formData, audioFileId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select audio file" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {audioFiles.map((audioFile) => (
+                      <SelectItem key={audioFile.id} value={audioFile.id}>
+                        <div className="flex flex-col">
+                          <span>{audioFile.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDuration(audioFile.durationSeconds)} • {formatFileSize(audioFile.fileSizeBytes)}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Custom Name (Optional)</Label>
+              <Input
+                id="edit-name"
+                placeholder="Override the audio file name..."
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-displayOrder">Display Order</Label>
+                <Input
+                  id="edit-displayOrder"
+                  type="number"
+                  value={formData.displayOrder}
+                  onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="edit-isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: !!checked })}
+                  />
+                  <Label htmlFor="edit-isActive">Active</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit}>
+              Update Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }

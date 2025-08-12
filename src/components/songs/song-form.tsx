@@ -12,8 +12,7 @@ import {
 import { ChordPreview } from "./chord-formatter"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { STORAGE_FOLDERS, uploadImage, deleteImage } from "@/lib/image-upload"
-import { KaraokeUpload } from "@/components/karaoke/karaoke-upload"
-import MultiTrackUpload from "@/components/karaoke/multi-track-upload"
+import MultiTrackUpload from "@/components/multi-track/multi-track-upload"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -74,13 +73,8 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
     tags: initialData?.tags || [],
     metaTitle: initialData?.metaTitle || "",
     metaDescription: initialData?.metaDescription || "",
-    // Karaoke fields (derived from karaoke relationship)
-    hasKaraoke: !!initialData?.karaoke,
-    karaokeFileUrl: initialData?.karaoke?.fileUrl || "",
-    karaokeFileSize: initialData?.karaoke?.fileSize || null,
-    karaokeDuration: initialData?.karaoke?.duration || null,
-    karaokeKey: initialData?.karaoke?.key || "",
-    karaokeUploadedAt: initialData?.karaoke?.uploadedAt || null,
+    // Multi-Track fields (derived from multiTrack relationship)
+    hasMultiTrack: !!initialData?.multiTrack,
   })
   
   // State for song existence check
@@ -841,16 +835,16 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                   </CardContent>
                 </Card>
 
-                {/* Karaoke Card */}
+                {/* Multi-Track Card */}
                 {formState.id ? (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <IconMusic className="h-5 w-5" />
-                        Multi-Track Karaoke
+                        Multi-Track Audio
                       </CardTitle>
                       <CardDescription>
-                        Upload multiple karaoke tracks for this song
+                        Upload multiple audio tracks for this song
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -858,25 +852,27 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                       <MultiTrackUpload
                         songId={formState.id}
                         onSuccess={() => {
-                          // Refresh song data to get updated karaoke info with tracks
+                          // Refresh song data to get updated multi-track info
                           if (formState.id) {
                             songService.getById(formState.id).then((song) => {
-                              console.log('Updated song with karaoke tracks:', song.karaoke?.tracks);
+                              console.log('Updated song with multi-track:', song.multiTrack);
                               setFormState(prev => ({
                                 ...prev,
-                                hasKaraoke: !!song.karaoke,
-                                karaokeFileUrl: song.karaoke?.fileUrl || "",
-                                karaokeKey: song.karaoke?.key || "",
-                                karaokeDuration: song.karaoke?.duration || null,
-                                karaokeUploadedAt: song.karaoke?.uploadedAt || null,
+                                hasMultiTrack: !!song.multiTrack,
                               }));
-                              
+
                               // Display track count in success message
-                              const trackCount = song.karaoke?.tracks?.length || 0;
+                              const trackCount = song.multiTrack ? [
+                                song.multiTrack.vocalsUrl,
+                                song.multiTrack.bassUrl,
+                                song.multiTrack.drumsUrl,
+                                song.multiTrack.otherUrl
+                              ].filter(Boolean).length : 0;
+
                               if (trackCount > 0) {
-                                toast.success(`Multi-track karaoke uploaded successfully! ${trackCount} tracks added.`);
+                                toast.success(`Multi-track uploaded successfully! ${trackCount} tracks added.`);
                               } else {
-                                toast.success("Multi-track karaoke uploaded successfully!");
+                                toast.success("Multi-track uploaded successfully!");
                               }
                             }).catch(error => {
                               console.error('Error fetching updated song data:', error);
@@ -895,16 +891,16 @@ export default function SongForm({ mode, initialData, title }: SongFormProps) {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <IconMusic className="h-5 w-5" />
-                        Multi-Track Karaoke
+                        Multi-Track Audio
                       </CardTitle>
                       <CardDescription>
-                        Save the song first to add karaoke tracks
+                        Save the song first to add multi-track audio
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-center py-8 text-muted-foreground">
                         <IconMusic className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                        <p>Multi-track karaoke upload will be available after saving the song</p>
+                        <p>Multi-track audio upload will be available after saving the song</p>
                       </div>
                     </CardContent>
                   </Card>

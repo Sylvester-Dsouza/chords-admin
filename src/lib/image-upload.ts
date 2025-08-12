@@ -7,7 +7,7 @@ export const STORAGE_FOLDERS = {
   COLLECTION_COVERS: 'collection-cover',
   BANNER_IMAGES: 'banner-image',
   VOCALS: 'vocals',
-  KARAOKE: 'karaoke',
+  MULTI_TRACK: 'multi-track',
 };
 
 /**

@@ -15,7 +15,7 @@ export interface MediaFile {
 }
 
 export interface MediaUsage {
-  type: 'song' | 'collection' | 'artist' | 'banner' | 'karaoke' | 'vocal_model';
+  type: 'song' | 'collection' | 'artist' | 'banner' | 'multi_track' | 'vocal_model';
   id: string;
   title: string;
   field: string;
@@ -129,7 +129,7 @@ class MediaService {
       case 'collection': return '📚';
       case 'artist': return '👤';
       case 'banner': return '🖼️';
-      case 'karaoke': return '🎤';
+      case 'multi_track': return '🎤';
       case 'vocal_model': return '🎙️';
       default: return '📄';
     }
@@ -141,7 +141,7 @@ class MediaService {
       case 'collection': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'artist': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
       case 'banner': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      case 'karaoke': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
+      case 'multi_track': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
       case 'vocal_model': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
@@ -150,7 +150,7 @@ class MediaService {
   getBucketColor(bucket: string): string {
     switch (bucket) {
       case 'media': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'karaoke': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
+      case 'multi-track': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
       case 'vocal-models': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }

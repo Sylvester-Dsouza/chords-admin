@@ -41,8 +41,9 @@ import vocalService, {
 } from "@/services/vocal.service"
 
 export interface VocalItemFormValues {
-  categoryId: string
-  name: string
+  categoryId?: string
+  name?: string
+  audioFileId: string
   audioFileUrl: string
   durationSeconds: number
   fileSizeBytes: number
@@ -74,8 +75,9 @@ export default function VocalItemForm({
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [formData, setFormData] = React.useState<VocalItemFormValues>({
-    categoryId: defaultCategoryId || '',
+    categoryId: defaultCategoryId || undefined,
     name: '',
+    audioFileId: '',
     audioFileUrl: '',
     durationSeconds: 0,
     fileSizeBytes: 0,
@@ -110,11 +112,12 @@ export default function VocalItemForm({
           setLoading(true)
           const item = await vocalService.getItemById(itemId)
           setFormData({
-            categoryId: item.categoryId,
-            name: item.name,
-            audioFileUrl: item.audioFileUrl,
-            durationSeconds: item.durationSeconds,
-            fileSizeBytes: item.fileSizeBytes,
+            categoryId: item.categoryId || undefined,
+            name: item.name || '',
+            audioFileId: item.audioFileId,
+            audioFileUrl: item.audioFile?.audioFileUrl || '',
+            durationSeconds: item.audioFile?.durationSeconds || 0,
+            fileSizeBytes: item.audioFile?.fileSizeBytes || 0,
             displayOrder: item.displayOrder,
             isActive: item.isActive,
           })
@@ -164,7 +167,7 @@ export default function VocalItemForm({
     if (externalLoading || isUploading) return
 
     // Validation
-    if (!formData.name.trim()) {
+    if (!formData.name || !formData.name.trim()) {
       setError('Item name is required')
       return
     }
@@ -196,7 +199,7 @@ export default function VocalItemForm({
 
       const itemData = {
         ...formData,
-        name: formData.name.trim(),
+        name: formData.name?.trim() || '',
         audioFileUrl: audioUrl,
       }
 
@@ -205,15 +208,26 @@ export default function VocalItemForm({
       } else {
         // Default submit behavior
         if (mode === 'create') {
-          const createData: CreateVocalItemDto = itemData
+          const createData: CreateVocalItemDto = {
+            categoryId: formData.categoryId,
+            audioFileId: formData.audioFileId,
+            name: formData.name?.trim() || undefined,
+            displayOrder: formData.displayOrder,
+            isActive: formData.isActive,
+          }
           await vocalService.createItem(createData)
           toast.success('Item created successfully')
         } else if (mode === 'edit' && itemId) {
-          const updateData: UpdateVocalItemDto = itemData
+          const updateData: UpdateVocalItemDto = {
+            categoryId: formData.categoryId,
+            name: formData.name?.trim() || undefined,
+            displayOrder: formData.displayOrder,
+            isActive: formData.isActive,
+          }
           await vocalService.updateItem(itemId, updateData)
           toast.success('Item updated successfully')
         }
-        router.push(`/vocals/categories/${formData.categoryId}`)
+        router.push(`/vocal-categories/${formData.categoryId}`)
       }
     } catch (error) {
       console.error('Error saving item:', error)

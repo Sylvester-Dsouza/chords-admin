@@ -46,31 +46,16 @@ export interface Song {
   // SEO fields
   metaTitle?: string | null;
   metaDescription?: string | null;
-  // Karaoke relationship
-  karaoke?: {
+  // Multi-Track relationship
+  multiTrack?: {
     id: string;
     songId: string;
-    fileUrl: string;
-    fileSize?: number | null;
-    duration?: number | null;
-    key?: string | null;
-    uploadedBy?: string | null;
+    vocalsUrl?: string | null;
+    bassUrl?: string | null;
+    drumsUrl?: string | null;
+    otherUrl?: string | null;
     uploadedAt: Date;
     updatedAt: Date;
-    version: number;
-    status: string;
-    quality?: string | null;
-    notes?: string | null;
-    tracks?: {
-      id: string;
-      trackType: string;
-      fileUrl: string;
-      fileSize?: number | null;
-      duration?: number | null;
-      volume: number;
-      isMuted: boolean;
-      status: string;
-    }[];
   } | null;
 }
 
@@ -137,12 +122,12 @@ const songService = {
     }
   },
 
-  // Get songs with pagination and karaoke data
+  // Get songs with pagination and multi-track data
   getSongs: async (params?: {
     page?: number;
     limit?: number;
     search?: string;
-    includeKaraoke?: boolean;
+    includeMultiTrack?: boolean;
   }): Promise<{ songs: Song[]; total: number; page: number; limit: number }> => {
     try {
       let url = '/songs';
@@ -151,7 +136,7 @@ const songService = {
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       if (params?.search) queryParams.append('search', params.search);
-      if (params?.includeKaraoke) queryParams.append('includeKaraoke', 'true');
+      if (params?.includeMultiTrack) queryParams.append('includeMultiTrack', 'true');
 
       const queryString = queryParams.toString();
       if (queryString) url += `?${queryString}`;

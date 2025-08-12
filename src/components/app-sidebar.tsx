@@ -83,8 +83,8 @@ const data = {
           icon: IconBrandChrome,
         },
         {
-          title: "Karaoke",
-          url: "/karaoke",
+          title: "Multi-Track",
+          url: "/multi-track",
           icon: IconMusic,
         },
       ],
@@ -179,13 +179,18 @@ const data = {
       icon: IconMicrophone,
       subItems: [
         {
-          title: "All Categories",
+          title: "Vocal Library",
           url: "/vocals",
+          icon: IconMusic,
+        },
+        {
+          title: "Categories",
+          url: "/vocal-categories",
           icon: IconList,
         },
         {
           title: "Add New Category",
-          url: "/vocals/categories/new",
+          url: "/vocal-categories/new",
           icon: IconPlus,
         },
       ],
@@ -289,6 +294,11 @@ const data = {
       name: "Feature Requests",
       url: "/feature-requests",
       icon: IconBulb,
+    },
+    {
+      name: "Account Deletion",
+      url: "/account-deletion",
+      icon: IconUsers,
     },
     {
       name: "Media Library",
